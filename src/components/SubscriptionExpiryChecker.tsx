@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
+import { toast } from 'sonner';
 
 export const SubscriptionExpiryChecker = () => {
   const { user } = useAuth();
@@ -12,23 +13,32 @@ export const SubscriptionExpiryChecker = () => {
     if (!user || !subscription) return;
 
     const checkSubscriptionStatus = async () => {
+      console.log('Checking subscription status for:', subscription);
+      
       // Check if subscription has expired
       if (subscription.expires_at && new Date(subscription.expires_at) < new Date()) {
+        console.log('Subscription expired, downgrading to free plan');
+        
         // If subscription is expired and not already free, downgrade to free
         if (subscription.tier !== 'free') {
           try {
-            const { error } = await supabase.functions.invoke('verify-gumroad-purchase', {
-              body: {
-                productId: null,
-                purchaseId: null,
-                userId: user.id,
-                tier: 'free'
-              }
-            });
+            const { error } = await supabase
+              .from('user_subscriptions')
+              .update({
+                tier: 'free',
+                expires_at: null,
+                gumroad_product_id: null,
+                gumroad_purchase_id: null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id);
 
-            if (!error) {
-              console.log('Subscription expired, downgraded to free plan');
-              refetch();
+            if (error) {
+              console.error('Error downgrading expired subscription:', error);
+            } else {
+              console.log('Successfully downgraded expired subscription to free plan');
+              toast.info('Your subscription has expired and has been downgraded to the free plan.');
+              refetch(); // Refresh subscription data
             }
           } catch (error) {
             console.error('Error downgrading expired subscription:', error);

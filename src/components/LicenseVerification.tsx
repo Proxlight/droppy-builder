@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,6 +32,8 @@ export const LicenseVerification = ({ isOpen, onClose, onVerified }: LicenseVeri
 
     setLoading(true);
     try {
+      console.log('Starting license verification for user:', user.id);
+      
       // Call the verification function
       const { data, error } = await supabase.functions.invoke('verify-gumroad-license', {
         body: {
@@ -42,18 +43,26 @@ export const LicenseVerification = ({ isOpen, onClose, onVerified }: LicenseVeri
       });
 
       if (error) {
+        console.error('License verification error:', error);
         throw new Error(error.message);
       }
 
-      toast.success('License verified successfully! Your subscription has been activated.');
+      console.log('License verification successful:', data);
       
-      // Refresh the subscription data in the auth context
-      if (refetchSubscription) {
-        await refetchSubscription();
-      }
+      toast.success(`License verified successfully! Your ${data.tier} plan has been activated.`);
       
-      onVerified();
-      onClose();
+      // Wait a moment for the database to update, then refresh subscription data
+      setTimeout(async () => {
+        if (refetchSubscription) {
+          console.log('Refreshing subscription data...');
+          await refetchSubscription();
+        }
+        
+        onVerified();
+        onClose();
+        setLicenseKey(''); // Clear the input
+      }, 1000);
+
     } catch (error) {
       console.error('License verification error:', error);
       toast.error(`License verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

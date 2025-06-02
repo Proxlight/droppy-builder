@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, User, Mail, Shield, CreditCard } from 'lucide-react';
+import { ArrowLeft, User, Mail, Shield, CreditCard, Clock } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, signOut, subscription } = useAuth();
@@ -83,6 +83,27 @@ export default function ProfilePage() {
       toast.success('Signed out successfully');
     } catch (error) {
       toast.error('Error signing out');
+    }
+  };
+
+  const getTimeLeft = () => {
+    if (!subscription?.expires_at) return null;
+    
+    const expiryDate = new Date(subscription.expires_at);
+    const now = new Date();
+    const timeLeft = expiryDate.getTime() - now.getTime();
+    
+    if (timeLeft <= 0) return 'Expired';
+    
+    const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (days > 0) {
+      return `${days} day${days > 1 ? 's' : ''} left`;
+    } else if (hours > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''} left`;
+    } else {
+      return 'Less than 1 hour left';
     }
   };
 
@@ -184,12 +205,28 @@ export default function ProfilePage() {
                 </div>
                 
                 {subscription?.expires_at && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Expires:</span>
-                    <span className="text-sm">
-                      {new Date(subscription.expires_at).toLocaleDateString()}
-                    </span>
-                  </div>
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Expires:</span>
+                      <span className="text-sm">
+                        {new Date(subscription.expires_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        Time Left:
+                      </span>
+                      <span className={`text-sm font-medium ${
+                        getTimeLeft() === 'Expired' || getTimeLeft()?.includes('hour') 
+                          ? 'text-red-600' 
+                          : 'text-green-600'
+                      }`}>
+                        {getTimeLeft()}
+                      </span>
+                    </div>
+                  </>
                 )}
 
                 <Button
@@ -245,7 +282,7 @@ export default function ProfilePage() {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => window.open('mailto:feedback@buildfy.com?subject=User Feedback', '_blank')}
+                onClick={() => window.open('mailto:proxlight02@gmail.com?subject=User Feedback', '_blank')}
               >
                 Send Feedback
               </Button>
