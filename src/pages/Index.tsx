@@ -41,7 +41,7 @@ const Index = () => {
   
   const [windowTitle, setWindowTitle] = useState("My CustomTkinter Application");
   const [windowSize, setWindowSize] = useState({ width: 800, height: 600 });
-  const [windowBgColor, setWindowBgColor] = useState("#1A1A1A"); // Set dark background as default
+  const [windowBgColor, setWindowBgColor] = useState("#FFFFFF"); // Set white background as default
   
   // Safe setter for selected component that includes validation
   const safeSetSelectedComponent = useCallback((component: any) => {

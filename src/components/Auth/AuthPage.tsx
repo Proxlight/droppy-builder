@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, Mail, Lock, User, Sparkles, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 
 export default function AuthPage() {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
@@ -24,6 +24,13 @@ export default function AuthPage() {
     
     if (!email) {
       toast.error('Please enter your email');
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
@@ -68,13 +75,24 @@ export default function AuthPage() {
 
     try {
       if (mode === 'signin') {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         });
 
         if (error) {
-          toast.error(error.message || 'Login failed');
+          if (error.message.includes('Email not confirmed')) {
+            toast.error('Please verify your email address before signing in. Check your inbox for the verification email.');
+          } else {
+            toast.error(error.message || 'Login failed');
+          }
+          return;
+        }
+
+        // Check if email is verified
+        if (data.user && !data.user.email_confirmed_at) {
+          toast.error('Please verify your email address before signing in. Check your inbox for the verification email.');
+          await supabase.auth.signOut();
           return;
         }
 
@@ -95,7 +113,8 @@ export default function AuthPage() {
         }
 
         if (data.user && !data.session) {
-          toast.success('Please check your email to confirm your account!');
+          toast.success('Please check your email to confirm your account before signing in!');
+          setMode('signin');
         } else {
           toast.success('Account created successfully!');
           navigate('/');
@@ -133,8 +152,12 @@ export default function AuthPage() {
       <div className="relative w-full max-w-md z-10">
         {/* Logo and header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-4 shadow-xl">
-            <Sparkles className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-4 shadow-xl p-2">
+            <img 
+              src="/lovable-uploads/a84d9674-7518-42b6-9d78-96aa5284117e.png" 
+              alt="Buildfy Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
             Buildfy

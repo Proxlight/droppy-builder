@@ -42,20 +42,36 @@ export async function exportProject(components: any[], windowTitle?: string) {
       for (const [src, fileName] of Object.entries(componentImages)) {
         try {
           // Make sure we're working with a valid data URL
-          if (src && src.includes('base64')) {
+          if (src && typeof src === 'string' && src.startsWith('data:')) {
             console.log(`Adding image: ${fileName}`);
             // Extract the base64 content after the comma
             const base64Data = src.split(',')[1];
-            if (base64Data) {
-              assets.file(fileName, base64Data, { base64: true });
+            if (base64Data && base64Data.length > 0) {
+              // Validate base64 content length
+              const padding = base64Data.length % 4;
+              const paddedBase64 = padding ? base64Data + '='.repeat(4 - padding) : base64Data;
+              
+              // Verify it's valid base64
+              try {
+                atob(paddedBase64);
+                assets.file(fileName, paddedBase64, { base64: true });
+                console.log(`Successfully added image: ${fileName}`);
+              } catch (base64Error) {
+                console.error(`Invalid base64 data for ${fileName}:`, base64Error);
+                // Add placeholder instead of failing
+                assets.file(fileName, placeholderImageData, { base64: true });
+              }
             } else {
-              console.error(`Invalid base64 data for ${fileName}`);
+              console.error(`Empty base64 data for ${fileName}`);
+              assets.file(fileName, placeholderImageData, { base64: true });
             }
           } else {
             console.log(`Skipping non-data URL: ${src}`);
           }
         } catch (err) {
           console.error(`Error processing image ${fileName}:`, err);
+          // Add placeholder image instead of failing
+          assets.file(fileName, placeholderImageData, { base64: true });
         }
       }
     } else {
@@ -141,5 +157,5 @@ If you still encounter issues, please check the console output for detailed erro
  */
 function generatePlaceholderImage(): string {
   // A minimal base64-encoded PNG image (a blue square)
-  return 'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsIAAA7CARUoSoAAAAF3SURBVHhe7dAxAQAwDASh+je9+WsYD0LACQScgIATEHACAk5AwAkIOAEBJyDgBASc+7N3lY0dwGF4AkvQOLO8AY0rhcc4zPLs2TU77d21+xPIA8QD+fkB4oFkyzHngXggOSACyRLZcsx5IB5IDogvWVkiW445D8QDyQERSJbIlmPOA/FAckAEkiWy5ZjzQDyQHBCBZIlsOeY8EA8kB0QgWSJbjjkPxAPJARFIlsiWY84D8UByQASSJbLlmPNAPJAcEIFkiWw55jwQDyQHRCBZIluOOQ/EA8kBEUiWyJZjzgPxQHJABJIlsuWY80A8kBwQgWSJbDnmPBAPJAdEIFkiW445D8QDyQERSJbIlsOeY8EA8kB0QgWSJbDnmPBAPJAcEIFkiWy5ZjzQDyQHRCBZIlsOeY8EA8kB0QgWSJbDnmPBAPJAcEIFkiWy5ZjzQDyQHRCBZIlsOeY8EA8kBEUiWyJZjzgPxQArtpXaW3e+UawAAAABJRU5ErkJggg==';
+  return 'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsIAAA7CARUoSoAAAAF3SURBVHhe7dAxAQAwDASh+je9+WsYD0LACQScgIATEHACAk5AwAkIOAEBJyDgBASc+7N3lY0dwGF4AkvQOLO8AY0rhcc4zPLs2TU77d21+xPIA8QD+fkB4oFkyzHngXggOSACyRLZcsx5IB5IDogvWVkiW445D8QDyQERSJbIlmPOA/FAckAEkiWy5ZjzQDyQHBCBZIlsOeY8EA8kB0QgWSJbjjkPxAPJARFIlsiWY84D8UByQASSJbLlmPNAPJAcEIFkiWw55jwQDyQHRCBZIluOOQ/EA8kBEUiWyJZjzgPxQHJABJIlsuWY80A8kBwQgWSJbDnmPBAPJAdEIFkiW445D8QDyQERSJbIlsOeY8EA8kB0QgWSJbDnmPBAPJAcEIFkiWy5ZjzQDyQHRCBZIlsOeY8EA8kBEUiWyJZDnmPBAPJAcEIFkiWy5ZjzQDyQHRCBZIlsOeY8EA8kBEUiWyJZjzgPxQArtpXaW3e+UawAAAABJRU5ErkJggg==';
 }

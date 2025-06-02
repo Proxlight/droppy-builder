@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { LicenseVerification } from '@/components/LicenseVerification';
 
 interface PlanFeature {
   name: string;
@@ -90,6 +91,7 @@ const plans: PricingPlan[] = [
 
 export default function PricingPlans() {
   const [processing, setProcessing] = useState<string | null>(null);
+  const [showLicenseVerification, setShowLicenseVerification] = useState(false);
   const { subscription, loading, refetch } = useSubscription();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -122,19 +124,17 @@ export default function PricingPlans() {
         toast.success('Downgraded to Free plan successfully');
         refetch();
       } else {
-        // Redirect to Gumroad for payment
+        // For paid plans, open payment page and then show license verification
         if (plan.gumroadUrl) {
-          // Store user info for post-purchase verification
-          localStorage.setItem('pendingUpgrade', JSON.stringify({
-            userId: user.id,
-            tier: plan.tier,
-            productId: plan.productId
-          }));
-          
           // Open Gumroad in new tab
           window.open(plan.gumroadUrl, '_blank');
           
-          toast.success('Redirecting to payment page...');
+          toast.success('Complete your purchase, then verify your license key below');
+          
+          // Show license verification dialog after a short delay
+          setTimeout(() => {
+            setShowLicenseVerification(true);
+          }, 2000);
         } else {
           throw new Error('Payment URL not available');
         }
@@ -154,6 +154,11 @@ export default function PricingPlans() {
 
   const isCurrentPlan = (planTier: string) => {
     return getCurrentPlan() === planTier;
+  };
+
+  const handleLicenseVerified = () => {
+    refetch();
+    toast.success('Subscription activated successfully!');
   };
 
   return (
@@ -224,6 +229,13 @@ export default function PricingPlans() {
             </Card>
           ))}
         </div>
+
+        {/* License Verification Dialog */}
+        <LicenseVerification
+          isOpen={showLicenseVerification}
+          onClose={() => setShowLicenseVerification(false)}
+          onVerified={handleLicenseVerified}
+        />
 
         {/* Feedback Section */}
         <div className="mt-16 text-center">
