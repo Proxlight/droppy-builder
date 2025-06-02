@@ -18,7 +18,7 @@ interface LicenseVerificationProps {
 export const LicenseVerification = ({ isOpen, onClose, onVerified }: LicenseVerificationProps) => {
   const [licenseKey, setLicenseKey] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, refetchSubscription } = useAuth();
 
   const handleVerifyLicense = async () => {
     if (!licenseKey.trim()) {
@@ -34,7 +34,7 @@ export const LicenseVerification = ({ isOpen, onClose, onVerified }: LicenseVeri
     setLoading(true);
     try {
       // Call the verification function
-      const { error } = await supabase.functions.invoke('verify-gumroad-license', {
+      const { data, error } = await supabase.functions.invoke('verify-gumroad-license', {
         body: {
           licenseKey: licenseKey.trim(),
           userId: user.id
@@ -45,7 +45,13 @@ export const LicenseVerification = ({ isOpen, onClose, onVerified }: LicenseVeri
         throw new Error(error.message);
       }
 
-      toast.success('License verified successfully!');
+      toast.success('License verified successfully! Your subscription has been activated.');
+      
+      // Refresh the subscription data in the auth context
+      if (refetchSubscription) {
+        await refetchSubscription();
+      }
+      
       onVerified();
       onClose();
     } catch (error) {

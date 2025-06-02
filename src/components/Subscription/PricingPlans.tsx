@@ -250,7 +250,7 @@ export default function PricingPlans() {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => window.open('mailto:feedback@buildfy.com?subject=Pricing Feedback', '_blank')}
+                onClick={() => window.open('mailto:proxlight02@gmail.com?subject=Pricing Feedback', '_blank')}
               >
                 Send Feedback
               </Button>

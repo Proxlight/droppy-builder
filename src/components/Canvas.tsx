@@ -42,7 +42,7 @@ const Canvas = ({
   setSelectedComponents,
   windowTitle = "My CustomTkinter Application",
   windowSize = { width: 800, height: 600 },
-  windowBgColor = "#f0f0f0",
+  windowBgColor = "#FFFFFF",
   setWindowTitle,
   onAddComponent
 }: CanvasProps) => {
@@ -76,7 +76,7 @@ const Canvas = ({
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'Shift') {
         setIsMultiSelectKeyDown(true);
       }
       
@@ -98,7 +98,7 @@ const Canvas = ({
     };
     
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (!e.ctrlKey && !e.metaKey) {
+      if (e.key === 'Shift') {
         setIsMultiSelectKeyDown(false);
       }
     };
@@ -245,7 +245,8 @@ const Canvas = ({
         return;
       }
       
-      if (isMultiSelectKeyDown) {
+      if (e.shiftKey || isMultiSelectKeyDown) {
+        // Multi-select mode with Shift key
         if (selectedComponents.includes(component.id)) {
           const newSelected = selectedComponents.filter(id => id !== component.id);
           setSelectedComponents(newSelected);
@@ -269,6 +270,7 @@ const Canvas = ({
           }
         }
       } else {
+        // Single select mode
         setSelectedComponent(component);
         setSelectedComponents([component.id]);
       }
@@ -297,28 +299,52 @@ const Canvas = ({
 
     try {
       if (isDragging) {
-        const newComponents = components.map(comp => {
-          if (comp.id === selectedComponent.id) {
-            const rect = canvasRef.current?.getBoundingClientRect();
-            if (!rect) return comp;
-            
-            let newX = e.clientX - dragStart.x;
-            let newY = e.clientY - dragStart.y;
-            
-            newX = Math.max(0, Math.min(newX, rect.width - comp.size.width));
-            newY = Math.max(0, Math.min(newY, rect.height - comp.size.height));
-            
-            return {
-              ...comp,
-              position: {
-                x: newX,
-                y: newY
-              }
-            };
-          }
-          return comp;
-        });
-        setComponents(newComponents);
+        // Handle multi-select dragging
+        if (selectedComponents.length > 1) {
+          const deltaX = e.clientX - dragStart.x - selectedComponent.position.x;
+          const deltaY = e.clientY - dragStart.y - selectedComponent.position.y;
+          
+          const newComponents = components.map(comp => {
+            if (selectedComponents.includes(comp.id)) {
+              const rect = canvasRef.current?.getBoundingClientRect();
+              if (!rect) return comp;
+              
+              let newX = comp.position.x + deltaX;
+              let newY = comp.position.y + deltaY;
+              
+              newX = Math.max(0, Math.min(newX, rect.width - comp.size.width));
+              newY = Math.max(0, Math.min(newY, rect.height - comp.size.height));
+              
+              return {
+                ...comp,
+                position: { x: newX, y: newY }
+              };
+            }
+            return comp;
+          });
+          setComponents(newComponents);
+        } else {
+          // Single component dragging
+          const newComponents = components.map(comp => {
+            if (comp.id === selectedComponent.id) {
+              const rect = canvasRef.current?.getBoundingClientRect();
+              if (!rect) return comp;
+              
+              let newX = e.clientX - dragStart.x;
+              let newY = e.clientY - dragStart.y;
+              
+              newX = Math.max(0, Math.min(newX, rect.width - comp.size.width));
+              newY = Math.max(0, Math.min(newY, rect.height - comp.size.height));
+              
+              return {
+                ...comp,
+                position: { x: newX, y: newY }
+              };
+            }
+            return comp;
+          });
+          setComponents(newComponents);
+        }
       } else if (isResizing && resizeDirection) {
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return;
@@ -812,7 +838,7 @@ const Canvas = ({
         style={{ 
           width: windowSize.width, 
           height: windowSize.height,
-          backgroundColor: windowBgColor || '#f0f0f0',
+          backgroundColor: windowBgColor || '#FFFFFF',
         }}
       >
         <div className="window-titlebar">
@@ -849,7 +875,7 @@ const Canvas = ({
         <div
           ref={canvasRef}
           className={`flex-1 canvas-grid relative overflow-auto`}
-          style={{ backgroundColor: windowBgColor || '#f0f0f0' }}
+          style={{ backgroundColor: windowBgColor || '#FFFFFF' }}
           onDragOver={onDragOver}
           onDrop={onDrop}
           onMouseDown={handleCanvasMouseDown}

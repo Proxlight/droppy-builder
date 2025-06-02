@@ -75,7 +75,7 @@ serve(async (req) => {
         expiresAt.setFullYear(expiresAt.getFullYear() + 1);
       }
 
-      // Update user subscription
+      // Update user subscription in Supabase
       const { data, error } = await supabase
         .from("user_subscriptions")
         .upsert({
