@@ -22,34 +22,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { subscription, loading: subscriptionLoading } = useSubscription();
 
   useEffect(() => {
-    const setup = async () => {
-      setLoading(true);
-      
-      // Set up auth state listener first
-      const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
-        (event, currentSession) => {
+    // Set up auth state listener first
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        console.log('Auth state changed:', event, currentSession);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+        } else {
+          console.log('Initial session:', currentSession);
           setSession(currentSession);
           setUser(currentSession?.user ?? null);
         }
-      );
-      
-      // Then get current session
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      setLoading(false);
-      
-      return () => {
-        authSubscription.unsubscribe();
-      };
+      } catch (error) {
+        console.error('Error in getSession:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    setup();
+
+    getInitialSession();
+
+    return () => {
+      authSubscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.error('Sign out error:', error);
+      throw error;
+    }
   };
 
   const hasPaidPlan = subscription?.tier === 'standard' || subscription?.tier === 'pro';

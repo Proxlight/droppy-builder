@@ -14,12 +14,22 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, loading, subscription } = useAuth();
 
+  console.log('ProtectedRoute - user:', user, 'loading:', loading, 'subscription:', subscription);
+
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
-    return <Navigate to="/auth" />;
+    console.log('No user found, redirecting to /auth');
+    return <Navigate to="/auth" replace />;
   }
 
   // If no subscription tier is required, or the user is on free plan and no specific tier is needed
@@ -44,7 +54,7 @@ export default function ProtectedRoute({
   // If tier check fails, redirect to pricing
   if (requiredSubscription && 
       (requiredSubscription === 'standard' || requiredSubscription === 'pro')) {
-    return <Navigate to="/pricing" />;
+    return <Navigate to="/pricing" replace />;
   }
   
   return <>{children}</>;
