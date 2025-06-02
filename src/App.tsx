@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,7 +12,7 @@ import ProfilePage from "./components/Profile/ProfilePage";
 import GumroadVerification from "./components/GumroadVerification";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
-import SubscriptionExpiryChecker from "./components/Subscription/SubscriptionExpiryChecker";
+import { SubscriptionExpiryChecker } from "./components/SubscriptionExpiryChecker";
 import "./App.css";
 
 const queryClient = new QueryClient();
