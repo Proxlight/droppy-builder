@@ -11,6 +11,7 @@ interface AuthContextProps {
   loading: boolean;
   signOut: () => Promise<void>;
   hasPaidPlan: boolean;
+  refetchSubscription?: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -19,7 +20,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+  const { subscription, loading: subscriptionLoading, refetch: refetchSubscription } = useSubscription();
 
   useEffect(() => {
     // Set up auth state listener first
@@ -80,7 +81,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         subscription,
         loading: loading || subscriptionLoading,
         signOut,
-        hasPaidPlan
+        hasPaidPlan,
+        refetchSubscription
       }}
     >
       {children}
