@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, X } from 'lucide-react';
+import { Check, X, ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -24,6 +24,7 @@ interface PricingPlan {
   features: PlanFeature[];
   tier: 'free' | 'standard' | 'pro';
   productId?: string;
+  gumroadUrl?: string;
 }
 
 const plans: PricingPlan[] = [
@@ -52,7 +53,8 @@ const plans: PricingPlan[] = [
     price: '$8',
     billingPeriod: 'monthly',
     tier: 'standard',
-    productId: '7CX2FTDAsPXnb5Z-9bRKRA==',
+    productId: 'FPvNjFxa5sPWtpTzMtRIcw==',
+    gumroadUrl: 'https://proxlightapps.gumroad.com/l/ykteb',
     features: [
       { name: 'Basic widgets', included: true },
       { name: 'Unlimited canvas size', included: true },
@@ -71,7 +73,8 @@ const plans: PricingPlan[] = [
     price: '$95',
     billingPeriod: 'yearly',
     tier: 'pro',
-    productId: '7CX2FTDAsPXnb5Z-9bRKRA==',
+    productId: 'FPvNjFxa5sPWtpTzMtRIcw==',
+    gumroadUrl: 'https://proxlightapps.gumroad.com/l/ykteb',
     features: [
       { name: 'Basic widgets', included: true },
       { name: 'Unlimited canvas size', included: true },
@@ -93,7 +96,6 @@ export default function PricingPlans() {
   
   const handleUpgrade = async (plan: PricingPlan) => {
     try {
-      // Check if user is logged in
       if (!user) {
         toast.error('Please login to upgrade your plan');
         navigate('/auth');
@@ -101,13 +103,10 @@ export default function PricingPlans() {
       }
       
       setProcessing(plan.id);
-      console.log(`Processing upgrade to ${plan.name} plan for user ${user.id}`);
       
-      // This is a simplified version just for demo
-      // In a real app, you would redirect to Gumroad checkout
       if (plan.tier === 'free') {
-        // For downgrading to free plan
-        const { data, error } = await supabase.functions.invoke('verify-gumroad-purchase', {
+        // Downgrade to free plan
+        const { error } = await supabase.functions.invoke('verify-gumroad-purchase', {
           body: {
             productId: null,
             purchaseId: null,
@@ -123,28 +122,26 @@ export default function PricingPlans() {
         toast.success('Downgraded to Free plan successfully');
         refetch();
       } else {
-        // Mock a purchase ID for demo purposes
-        const mockPurchaseId = `purchase_${Math.random().toString(36).substring(2, 10)}`;
-        
-        const { data, error } = await supabase.functions.invoke('verify-gumroad-purchase', {
-          body: {
-            productId: plan.productId,
-            purchaseId: mockPurchaseId,
+        // Redirect to Gumroad for payment
+        if (plan.gumroadUrl) {
+          // Store user info for post-purchase verification
+          localStorage.setItem('pendingUpgrade', JSON.stringify({
             userId: user.id,
-            tier: plan.tier
-          }
-        });
-        
-        if (error) {
-          throw new Error(error.message);
+            tier: plan.tier,
+            productId: plan.productId
+          }));
+          
+          // Open Gumroad in new tab
+          window.open(plan.gumroadUrl, '_blank');
+          
+          toast.success('Redirecting to payment page...');
+        } else {
+          throw new Error('Payment URL not available');
         }
-        
-        toast.success(`Upgraded to ${plan.name} plan successfully`);
-        refetch();
       }
     } catch (error) {
       console.error('Error upgrading plan:', error);
-      toast.error(`Failed to process payment: ${error.message}`);
+      toast.error(`Failed to process upgrade: ${error.message}`);
     } finally {
       setProcessing(null);
     }
@@ -160,60 +157,94 @@ export default function PricingPlans() {
   };
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold">Choose Your Plan</h1>
-        <p className="text-muted-foreground mt-2">
-          Select the plan that best fits your needs
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {plans.map((plan) => (
-          <Card key={plan.id} className={`flex flex-col ${isCurrentPlan(plan.tier) ? 'border-primary' : ''}`}>
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto py-10">
+        {/* Header with back button */}
+        <div className="flex items-center mb-8">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+            className="mr-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Choose Your Plan</h1>
+            <p className="text-muted-foreground mt-2">
+              Select the plan that best fits your needs
+            </p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {plans.map((plan) => (
+            <Card key={plan.id} className={`flex flex-col ${isCurrentPlan(plan.tier) ? 'border-primary' : ''}`}>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>{plan.name}</CardTitle>
+                  {isCurrentPlan(plan.tier) && (
+                    <Badge variant="secondary">Current Plan</Badge>
+                  )}
+                </div>
+                <CardDescription>{plan.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <div className="mb-6">
+                  <span className="text-3xl font-bold">{plan.price}</span>
+                  <span className="text-muted-foreground">/{plan.billingPeriod}</span>
+                </div>
+                <ul className="space-y-2">
+                  {plan.features.map((feature, i) => (
+                    <li key={i} className="flex items-start">
+                      {feature.included ? (
+                        <Check className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
+                      ) : (
+                        <X className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+                      )}
+                      <span>{feature.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  className="w-full" 
+                  variant={isCurrentPlan(plan.tier) ? "secondary" : "default"}
+                  onClick={() => handleUpgrade(plan)}
+                  disabled={processing !== null || (isCurrentPlan(plan.tier) && plan.tier !== 'free')}
+                >
+                  {processing === plan.id
+                    ? 'Processing...'
+                    : isCurrentPlan(plan.tier)
+                    ? 'Current Plan'
+                    : `Upgrade to ${plan.name}`}
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+
+        {/* Feedback Section */}
+        <div className="mt-16 text-center">
+          <Card className="max-w-md mx-auto">
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>{plan.name}</CardTitle>
-                {isCurrentPlan(plan.tier) && (
-                  <Badge variant="secondary">Current Plan</Badge>
-                )}
-              </div>
-              <CardDescription>{plan.description}</CardDescription>
+              <CardTitle>Feedback</CardTitle>
+              <CardDescription>
+                Help us improve by sharing your thoughts
+              </CardDescription>
             </CardHeader>
-            <CardContent className="flex-1">
-              <div className="mb-6">
-                <span className="text-3xl font-bold">{plan.price}</span>
-                <span className="text-muted-foreground">/{plan.billingPeriod}</span>
-              </div>
-              <ul className="space-y-2">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-start">
-                    {feature.included ? (
-                      <Check className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
-                    ) : (
-                      <X className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
-                    )}
-                    <span>{feature.name}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter>
+            <CardContent>
               <Button 
-                className="w-full" 
-                variant={isCurrentPlan(plan.tier) ? "secondary" : "default"}
-                onClick={() => handleUpgrade(plan)}
-                disabled={processing !== null || (isCurrentPlan(plan.tier) && plan.tier !== 'free')}
+                variant="outline" 
+                className="w-full"
+                onClick={() => window.open('mailto:feedback@buildfy.com?subject=Pricing Feedback', '_blank')}
               >
-                {processing === plan.id
-                  ? 'Processing...'
-                  : isCurrentPlan(plan.tier)
-                  ? 'Current Plan'
-                  : `Upgrade to ${plan.name}`}
+                Send Feedback
               </Button>
-            </CardFooter>
+            </CardContent>
           </Card>
-        ))}
+        </div>
       </div>
     </div>
   );

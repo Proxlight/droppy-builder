@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import AuthPage from "./components/Auth/AuthPage";
 import PricingPlans from "./components/Subscription/PricingPlans";
 import ProfilePage from "./components/Profile/ProfilePage";
+import GumroadVerification from "./components/GumroadVerification";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 import "./App.css";
@@ -22,6 +23,7 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <GumroadVerification />
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/pricing" element={<PricingPlans />} />

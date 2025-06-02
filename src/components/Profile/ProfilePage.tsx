@@ -1,200 +1,257 @@
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useNavigate } from 'react-router-dom';
-
-interface Profile {
-  id: string;
-  email: string;
-  display_name: string | null;
-  avatar_url: string | null;
-}
+import { supabase } from '@/integrations/supabase/client';
+import { ArrowLeft, User, Mail, Shield, CreditCard } from 'lucide-react';
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [displayName, setDisplayName] = useState('');
-  const [loading, setLoading] = useState(true);
-  const { subscription } = useSubscription();
+  const { user, signOut, subscription } = useAuth();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState({
+    email: user?.email || '',
+    displayName: '',
+    avatarUrl: ''
+  });
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session) {
-          navigate('/auth');
-          return;
-        }
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
 
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (error) throw error;
-
-        setProfile(data as Profile);
-        setDisplayName(data.display_name || '');
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-        toast.error('Failed to load profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [navigate]);
-
-  const updateProfile = async () => {
+  const fetchProfile = async () => {
     try {
-      if (!profile) return;
-      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setProfile({
+          email: data.email || user?.email || '',
+          displayName: data.display_name || '',
+          avatarUrl: data.avatar_url || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
       const { error } = await supabase
         .from('profiles')
-        .update({ display_name: displayName })
-        .eq('id', profile.id);
+        .upsert({
+          id: user?.id,
+          email: profile.email,
+          display_name: profile.displayName,
+          avatar_url: profile.avatarUrl,
+          updated_at: new Date().toISOString()
+        });
 
       if (error) throw error;
-      
+
       toast.success('Profile updated successfully');
-      setProfile({ ...profile, display_name: displayName });
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-      toast.error('Failed to log out');
-      return;
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+      toast.success('Signed out successfully');
+    } catch (error) {
+      toast.error('Error signing out');
     }
-    
-    navigate('/auth');
   };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase();
-  };
-
-  if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex justify-center">
-          <span>Loading profile...</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Profile Information */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>
-              Update your account details and preferences
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center space-x-4">
-              <Avatar className="h-16 w-16">
-                {profile?.avatar_url ? (
-                  <AvatarImage src={profile.avatar_url} alt={profile.display_name || profile.email} />
-                ) : (
-                  <AvatarFallback>
-                    {profile?.display_name ? getInitials(profile.display_name) : profile?.email.charAt(0).toUpperCase()}
-                  </AvatarFallback>
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto py-10 max-w-2xl">
+        {/* Header with back button */}
+        <div className="flex items-center mb-8">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+            className="mr-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Profile Settings</h1>
+            <p className="text-muted-foreground mt-2">
+              Manage your account settings and preferences
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {/* Profile Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <User className="h-5 w-5 mr-2" />
+                Profile Information
+              </CardTitle>
+              <CardDescription>
+                Update your personal information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleUpdateProfile} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={profile.email}
+                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                      className="pl-10"
+                      disabled
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="displayName">Display Name</Label>
+                  <Input
+                    id="displayName"
+                    value={profile.displayName}
+                    onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
+                    placeholder="Enter your display name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="avatarUrl">Avatar URL</Label>
+                  <Input
+                    id="avatarUrl"
+                    value={profile.avatarUrl}
+                    onChange={(e) => setProfile({ ...profile, avatarUrl: e.target.value })}
+                    placeholder="Enter avatar URL"
+                  />
+                </div>
+
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Updating...' : 'Update Profile'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Subscription Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CreditCard className="h-5 w-5 mr-2" />
+                Subscription Status
+              </CardTitle>
+              <CardDescription>
+                Your current subscription details
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Current Plan:</span>
+                  <span className="text-sm capitalize font-semibold">
+                    {subscription?.tier || 'Free'}
+                  </span>
+                </div>
+                
+                {subscription?.expires_at && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Expires:</span>
+                    <span className="text-sm">
+                      {new Date(subscription.expires_at).toLocaleDateString()}
+                    </span>
+                  </div>
                 )}
-              </Avatar>
-              <div>
-                <h3 className="text-lg font-medium">
-                  {profile?.display_name || 'No display name set'}
-                </h3>
-                <p className="text-sm text-gray-500">{profile?.email}</p>
+
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/pricing')}
+                  className="w-full"
+                >
+                  Manage Subscription
+                </Button>
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="display-name">Display Name</Label>
-              <Input
-                id="display-name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Enter your display name"
-              />
-            </div>
-
-            <div className="flex justify-between">
-              <Button onClick={updateProfile}>Save Changes</Button>
-              <Button variant="destructive" onClick={handleLogout}>
+          {/* Account Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Shield className="h-5 w-5 mr-2" />
+                Account Actions
+              </CardTitle>
+              <CardDescription>
+                Manage your account security
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/auth')}
+                className="w-full"
+              >
+                Change Password
+              </Button>
+              
+              <Button
+                variant="destructive"
+                onClick={handleSignOut}
+                className="w-full"
+              >
                 Sign Out
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Subscription Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Subscription</CardTitle>
-            <CardDescription>
-              Your current plan and subscription information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-medium">Current Plan</h3>
-              <p className="text-2xl font-bold capitalize">
-                {subscription?.tier || 'Free'}
-              </p>
-            </div>
-
-            {subscription?.expires_at && (
-              <div>
-                <h3 className="font-medium">Expires On</h3>
-                <p>{formatDate(subscription.expires_at)}</p>
-              </div>
-            )}
-
-            <Button 
-              className="w-full" 
-              onClick={() => navigate('/pricing')}
-            >
-              {subscription?.tier === 'free' 
-                ? 'Upgrade Plan' 
-                : 'Manage Subscription'}
-            </Button>
-          </CardContent>
-        </Card>
+          {/* Feedback Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Feedback</CardTitle>
+              <CardDescription>
+                Help us improve Buildfy
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => window.open('mailto:feedback@buildfy.com?subject=User Feedback', '_blank')}
+              >
+                Send Feedback
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

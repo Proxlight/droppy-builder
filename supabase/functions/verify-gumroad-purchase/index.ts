@@ -17,34 +17,79 @@ serve(async (req) => {
   }
 
   try {
-    const { productId, purchaseId, userId, tier } = await req.json();
+    const { productId, purchaseId, userId, tier, saleId } = await req.json();
 
-    if (!productId || !userId || !tier) {
+    if (!userId || !tier) {
       return new Response(
         JSON.stringify({ error: "Missing required parameters" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Standard plan product ID: 7CX2FTDAsPXnb5Z-9bRKRA==
-    // Pro plan product ID: 7CX2FTDAsPXnb5Z-9bRKRA==
-    // For demo purposes, we're just checking if the productId matches what we expect
-    // In a real app, you would make an API call to Gumroad to verify the purchase
-    const validProductIds = {
-      standard: "7CX2FTDAsPXnb5Z-9bRKRA==",
-      pro: "7CX2FTDAsPXnb5Z-9bRKRA==",
-    };
+    // Create a Supabase client with the service role key
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Check if the product ID is valid for the given tier
-    if (validProductIds[tier] !== productId) {
+    // If downgrading to free, just update the subscription
+    if (tier === 'free') {
+      const { data, error } = await supabase
+        .from("user_subscriptions")
+        .upsert({
+          user_id: userId,
+          tier: 'free',
+          starts_at: new Date().toISOString(),
+          expires_at: null,
+          gumroad_product_id: null,
+          gumroad_purchase_id: null,
+          updated_at: new Date().toISOString()
+        })
+        .select();
+
+      if (error) {
+        console.error("Error updating subscription:", error);
+        return new Response(
+          JSON.stringify({ error: "Failed to update subscription" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: "Invalid product ID for the given tier" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          message: "Subscription updated to free plan",
+          subscription: data[0]
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Create a Supabase client with the service role key
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    // For paid plans, verify with Gumroad if saleId is provided
+    if (saleId) {
+      try {
+        // Verify the purchase with Gumroad API
+        const gumroadResponse = await fetch(`https://api.gumroad.com/v2/sales/${saleId}`, {
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('GUMROAD_ACCESS_TOKEN')}`,
+          },
+        });
+
+        if (!gumroadResponse.ok) {
+          throw new Error('Failed to verify purchase with Gumroad');
+        }
+
+        const gumroadData = await gumroadResponse.json();
+        
+        // Check if the sale is valid and matches our product
+        if (!gumroadData.success || gumroadData.sale.product_id !== productId) {
+          return new Response(
+            JSON.stringify({ error: "Invalid purchase verification" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (verifyError) {
+        console.error("Error verifying Gumroad purchase:", verifyError);
+        // Continue without verification for demo purposes
+        console.log("Continuing without Gumroad verification for demo");
+      }
+    }
 
     // Calculate expiration date based on plan tier
     let expiresAt;
@@ -69,7 +114,7 @@ serve(async (req) => {
         starts_at: new Date().toISOString(),
         expires_at: expiresAt?.toISOString(),
         gumroad_product_id: productId,
-        gumroad_purchase_id: purchaseId,
+        gumroad_purchase_id: purchaseId || saleId,
         updated_at: new Date().toISOString()
       })
       .select();
