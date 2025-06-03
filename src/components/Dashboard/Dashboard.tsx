@@ -8,7 +8,7 @@ import { Trash2, Edit3, Plus, Crown, Zap, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LicenseVerification } from '@/components/LicenseVerification';
-import { hasFeature, FEATURES } from '@/utils/subscriptionUtils';
+import { hasFeature, FEATURES, canCreateProject, getMaxProjects } from '@/utils/subscriptionUtils';
 
 interface Project {
   id: string;
@@ -61,9 +61,11 @@ export function Dashboard() {
     });
   };
 
-  const canCreateProjects = hasFeature(subscription, FEATURES.CREATE_PROJECTS);
+  const canCreateMoreProjects = canCreateProject(subscription, projects.length);
   const canExportCode = hasFeature(subscription, FEATURES.EXPORT_CODE);
   const shouldShowWatermark = !hasFeature(subscription, FEATURES.REMOVE_WATERMARK);
+  const subscriptionTier = subscription?.tier || 'free';
+  const maxProjects = getMaxProjects(subscriptionTier);
 
   const getTierIcon = (tier: string) => {
     switch (tier) {
@@ -81,7 +83,6 @@ export function Dashboard() {
     }
   };
 
-  const subscriptionTier = subscription?.tier || 'free';
   const renewsAt = subscription?.expires_at;
 
   return (
@@ -92,9 +93,11 @@ export function Dashboard() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">B</span>
-                </div>
+                <img 
+                  src="/lovable-uploads/a2511ed4-b088-4fc0-81c2-1d253b757b1b.png" 
+                  alt="Buildfy Logo" 
+                  className="w-8 h-8"
+                />
                 <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Buildfy
                 </h1>
@@ -141,10 +144,15 @@ export function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-white/60 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Projects</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Projects</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{projects.length}</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {projects.length}
+                {maxProjects !== 'unlimited' && (
+                  <span className="text-lg font-normal text-gray-500">/{maxProjects}</span>
+                )}
+              </div>
             </CardContent>
           </Card>
           
@@ -166,7 +174,11 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="flex space-x-1">
-                {canCreateProjects && <Badge variant="secondary" className="text-xs">Projects</Badge>}
+                {maxProjects !== 'unlimited' ? (
+                  <Badge variant="secondary" className="text-xs">{maxProjects} Projects</Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-xs">Unlimited</Badge>
+                )}
                 {canExportCode && <Badge variant="secondary" className="text-xs">Export</Badge>}
                 {!shouldShowWatermark && <Badge variant="secondary" className="text-xs">No Watermark</Badge>}
               </div>
@@ -193,8 +205,8 @@ export function Dashboard() {
                   <ul className="space-y-2 text-sm text-gray-600">
                     <li>• Unlimited projects</li>
                     <li>• Export code functionality</li>
-                    <li>• Priority support</li>
                     <li>• Advanced components</li>
+                    <li>• Priority support</li>
                   </ul>
                 </CardContent>
                 <CardFooter>
@@ -246,7 +258,7 @@ export function Dashboard() {
             <h3 className="text-xl font-semibold text-gray-900">Your Projects</h3>
             <Button 
               onClick={createNewProject}
-              disabled={!canCreateProjects}
+              disabled={!canCreateMoreProjects}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -254,10 +266,10 @@ export function Dashboard() {
             </Button>
           </div>
 
-          {!canCreateProjects && (
+          {!canCreateMoreProjects && subscriptionTier === 'free' && (
             <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                Upgrade to Standard or Pro plan to create unlimited projects.
+                You've reached the limit of {maxProjects} projects for the free plan. Upgrade to Standard or Pro for unlimited projects.
               </p>
             </div>
           )}
@@ -274,7 +286,7 @@ export function Dashboard() {
                 </p>
                 <Button 
                   onClick={createNewProject}
-                  disabled={!canCreateProjects}
+                  disabled={!canCreateMoreProjects}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Canvas from '../components/Canvas';
 import { Sidebar } from '../components/Sidebar';
@@ -182,9 +181,11 @@ const Index = () => {
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded flex items-center justify-center">
-              <span className="text-white font-bold text-xs">B</span>
-            </div>
+            <img 
+              src="/lovable-uploads/a2511ed4-b088-4fc0-81c2-1d253b757b1b.png" 
+              alt="Buildfy Logo" 
+              className="w-6 h-6"
+            />
             <span className="font-semibold text-gray-900">Buildfy Canvas</span>
           </div>
           <button

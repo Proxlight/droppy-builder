@@ -1,3 +1,4 @@
+
 import { Subscription } from '@/hooks/useSubscription';
 
 export const FEATURES = {
@@ -19,6 +20,7 @@ export const TIER_FEATURES = {
     FEATURES.EXPORT_CODE,
     FEATURES.ADVANCED_WIDGETS,
     FEATURES.REMOVE_WATERMARK,
+    FEATURES.CREATE_PROJECTS,
   ],
   pro: [
     FEATURES.UNLIMITED_CANVAS,
@@ -27,6 +29,7 @@ export const TIER_FEATURES = {
     FEATURES.REMOVE_WATERMARK,
     FEATURES.PRIORITY_SUPPORT,
     FEATURES.CUSTOM_INTEGRATIONS,
+    FEATURES.CREATE_PROJECTS,
   ],
 };
 
@@ -59,4 +62,29 @@ export function isWidgetAvailable(widget: string, subscription: Subscription | n
   
   // Only paid users have access to advanced widgets
   return tier === 'standard' || tier === 'pro';
+}
+
+/**
+ * Check if user can create more projects based on their subscription tier
+ */
+export function canCreateProject(subscription: Subscription | null, currentProjectCount: number): boolean {
+  const tier = subscription?.tier || 'free';
+  
+  // Free users can create up to 3 projects
+  if (tier === 'free') {
+    return currentProjectCount < 3;
+  }
+  
+  // Standard and Pro users have unlimited projects
+  return tier === 'standard' || tier === 'pro';
+}
+
+/**
+ * Get the maximum number of projects allowed for a tier
+ */
+export function getMaxProjects(tier: 'free' | 'standard' | 'pro'): number | 'unlimited' {
+  if (tier === 'free') {
+    return 3;
+  }
+  return 'unlimited';
 }
