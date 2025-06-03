@@ -1,12 +1,13 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
-import AuthPage from './pages/AuthPage';
-import ProfilePage from './pages/ProfilePage';
+import AuthPage from './components/Auth/AuthPage';
+import ProfilePage from './components/Profile/ProfilePage';
 import NotFound from './pages/NotFound';
-import ProtectedRoute from './components/ProtectedRoute';
-import { QueryClient, QueryClientProvider } from 'react-query';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SubscriptionExpiryChecker } from './components/SubscriptionExpiryChecker';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import Index from './pages/Index';

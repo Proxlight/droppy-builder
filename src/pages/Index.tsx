@@ -132,73 +132,37 @@ const Index = () => {
         </div>
         
         <div className="flex items-center space-x-2">
-          <Toolbar 
-            widgets={widgets}
-            setWidgets={setWidgets}
-            windowProperties={windowProperties}
-            canExportCode={canExportCode}
-          />
+          <Toolbar />
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar widgets={widgets} setWidgets={setWidgets} />
+        <Sidebar />
         
         <div className="flex-1 flex flex-col">
           <div className="flex-1 p-4 overflow-auto">
             {shouldShowWatermark ? (
-              <WatermarkedCanvas 
-                widgets={widgets}
-                setWidgets={setWidgets}
-                selectedWidget={selectedWidget}
-                setSelectedWidget={setSelectedWidget}
-                windowProperties={windowProperties}
-              />
+              <WatermarkedCanvas />
             ) : (
-              <Canvas 
-                widgets={widgets}
-                setWidgets={setWidgets}
-                selectedWidget={selectedWidget}
-                setSelectedWidget={setSelectedWidget}
-                windowProperties={windowProperties}
-              />
+              <Canvas />
             )}
           </div>
         </div>
 
         <div className="w-80 border-l bg-white flex flex-col">
           <div className="flex-1 overflow-auto">
-            <WindowProperties 
-              windowProperties={windowProperties}
-              setWindowProperties={setWindowProperties}
-            />
+            <WindowProperties />
             {selectedWidget && (
-              <PropertyPanel 
-                widget={selectedWidget}
-                onUpdate={updateWidget}
-              />
+              <PropertyPanel />
             )}
             <Layers 
-              components={widgets}
-              onComponentsChange={setWidgets}
-              selectedComponent={selectedWidget}
-              setSelectedComponent={setSelectedWidget}
-              onOrderChange={(fromIndex: number, toIndex: number) => {
-                const newWidgets = [...widgets];
-                const [removed] = newWidgets.splice(fromIndex, 1);
-                newWidgets.splice(toIndex, 0, removed);
-                setWidgets(newWidgets);
-              }}
               visible={true}
             />
           </div>
           {showCodePreview && canExportCode && (
             <div className="border-t">
-              <CodePreview 
-                widgets={widgets}
-                windowProperties={windowProperties}
-              />
+              <CodePreview />
             </div>
           )}
         </div>
