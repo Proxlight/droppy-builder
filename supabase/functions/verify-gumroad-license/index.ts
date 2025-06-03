@@ -31,7 +31,7 @@ serve(async (req) => {
     // Create a Supabase client with the service role key
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Try verifying with the pro product ID first
+    // Product IDs for different tiers
     const proProductId = 'vxwrgFi49_CZb5Yrghn7EA==';
     const standardProductId = 'FPvNjFxa5sPWtpTzMtRIcw==';
 
@@ -39,7 +39,7 @@ serve(async (req) => {
     let tier = 'standard';
     let productId = standardProductId;
 
-    // First try pro product ID
+    // First try pro product ID (yearly plan)
     try {
       console.log(`Trying pro product ID: ${proProductId}`);
       const proResponse = await fetch(`https://api.gumroad.com/v2/licenses/verify`, {
@@ -67,7 +67,7 @@ serve(async (req) => {
       console.log('Pro verification failed, trying standard:', error);
     }
 
-    // If pro failed, try standard product ID
+    // If pro failed, try standard product ID (monthly plan)
     if (!gumroadData) {
       try {
         console.log(`Trying standard product ID: ${standardProductId}`);
@@ -105,7 +105,7 @@ serve(async (req) => {
       );
     }
 
-    // If license is valid, calculate expiration date
+    // Calculate expiration date based on tier
     const purchaseData = gumroadData.purchase;
     const purchaseDate = new Date(purchaseData.created_at);
     let expiresAt;
@@ -122,29 +122,40 @@ serve(async (req) => {
 
     console.log(`Updating subscription for user ${userId}: tier=${tier}, expires=${expiresAt?.toISOString()}`);
 
-    // Update user subscription in Supabase
+    // First, delete any existing subscription for the user to avoid conflicts
+    const { error: deleteError } = await supabase
+      .from("user_subscriptions")
+      .delete()
+      .eq('user_id', userId);
+
+    if (deleteError) {
+      console.log("Note: No existing subscription to delete or delete failed:", deleteError);
+    }
+
+    // Insert new subscription
     const { data, error } = await supabase
       .from("user_subscriptions")
-      .upsert({
+      .insert({
         user_id: userId,
         tier: tier,
         starts_at: purchaseDate.toISOString(),
         expires_at: expiresAt?.toISOString(),
         gumroad_product_id: productId,
         gumroad_purchase_id: purchaseData.id,
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .select();
 
     if (error) {
-      console.error("Error updating subscription:", error);
+      console.error("Error inserting subscription:", error);
       return new Response(
         JSON.stringify({ error: "Failed to update subscription", details: error.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Subscription updated successfully:", data);
+    console.log("Subscription created successfully:", data);
 
     return new Response(
       JSON.stringify({ 

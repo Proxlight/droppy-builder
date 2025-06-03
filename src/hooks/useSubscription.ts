@@ -34,23 +34,51 @@ export const useSubscription = () => {
       
       console.log('Fetching subscription for user:', session.user.id);
       
+      // Clear any cached data by forcing a fresh fetch
       const { data, error: subscriptionError } = await supabase
         .from('user_subscriptions')
         .select('*')
         .eq('user_id', session.user.id)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1);
       
       if (subscriptionError && subscriptionError.code !== 'PGRST116') {
         console.error('Subscription fetch error:', subscriptionError);
         throw subscriptionError;
       }
       
-      if (data) {
-        console.log('Fetched subscription:', data);
-        setSubscription(data as Subscription);
+      if (data && data.length > 0) {
+        const latestSubscription = data[0];
+        console.log('Fetched subscription:', latestSubscription);
+        
+        // Check if subscription is expired
+        if (latestSubscription.expires_at && new Date(latestSubscription.expires_at) < new Date()) {
+          console.log('Subscription expired, should be free tier');
+          // Don't set expired subscription, let the SubscriptionExpiryChecker handle it
+        }
+        
+        setSubscription(latestSubscription as Subscription);
       } else {
-        console.log('No subscription found for user');
-        setSubscription(null);
+        console.log('No subscription found for user, creating free subscription');
+        
+        // Create a free subscription if none exists
+        const { data: newSub, error: createError } = await supabase
+          .from('user_subscriptions')
+          .insert({
+            user_id: session.user.id,
+            tier: 'free',
+            starts_at: new Date().toISOString(),
+            expires_at: null
+          })
+          .select()
+          .single();
+          
+        if (createError) {
+          console.error('Error creating free subscription:', createError);
+        } else {
+          console.log('Created free subscription:', newSub);
+          setSubscription(newSub as Subscription);
+        }
       }
       
     } catch (err) {
@@ -70,7 +98,7 @@ export const useSubscription = () => {
       (event, session) => {
         console.log('Auth state changed:', event, session ? 'session exists' : 'no session');
         // If user logs in or out, refetch subscription
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
           fetchSubscription();
         }
       }

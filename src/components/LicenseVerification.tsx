@@ -17,7 +17,7 @@ interface LicenseVerificationProps {
 export const LicenseVerification = ({ isOpen, onClose, onVerified }: LicenseVerificationProps) => {
   const [licenseKey, setLicenseKey] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, refetchSubscription } = useAuth();
 
   const handleVerifyLicense = async () => {
     if (!licenseKey.trim()) {
@@ -52,11 +52,21 @@ export const LicenseVerification = ({ isOpen, onClose, onVerified }: LicenseVeri
       const renewalDate = data.expiresAt ? new Date(data.expiresAt).toLocaleDateString() : 'Never';
       toast.success(`License verified successfully! Your ${data.tier} plan has been activated. Renews on: ${renewalDate}`);
       
-      // Wait a moment for the database to update, then refresh subscription data
-      setTimeout(async () => {
-        // Force a page reload to ensure all data is refreshed
+      // Close the dialog immediately
+      onClose();
+      
+      // Refresh subscription data
+      if (refetchSubscription) {
+        await refetchSubscription();
+      }
+      
+      // Call the onVerified callback
+      onVerified();
+      
+      // Small delay then reload to ensure all state is updated
+      setTimeout(() => {
         window.location.reload();
-      }, 1500);
+      }, 1000);
 
     } catch (error) {
       console.error('License verification error:', error);
