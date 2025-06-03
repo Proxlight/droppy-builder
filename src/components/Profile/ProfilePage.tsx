@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -107,6 +106,15 @@ export default function ProfilePage() {
     }
   };
 
+  const getRenewalDate = () => {
+    if (!subscription?.expires_at) return null;
+    return new Date(subscription.expires_at).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container mx-auto py-10 max-w-2xl">
@@ -207,9 +215,9 @@ export default function ProfilePage() {
                 {subscription?.expires_at && (
                   <>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Expires:</span>
-                      <span className="text-sm">
-                        {new Date(subscription.expires_at).toLocaleDateString()}
+                      <span className="text-sm font-medium">Renewal Date:</span>
+                      <span className="text-sm font-semibold text-blue-600">
+                        {getRenewalDate()}
                       </span>
                     </div>
                     

@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import AuthPage from "./components/Auth/AuthPage";
 import PricingPlans from "./components/Subscription/PricingPlans";
 import ProfilePage from "./components/Profile/ProfilePage";
+import Dashboard from "./components/Dashboard/Dashboard";
 import GumroadVerification from "./components/GumroadVerification";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
@@ -38,10 +39,18 @@ const App = () => {
               } 
             />
             <Route 
-              path="/" 
+              path="/canvas" 
               element={
                 <ProtectedRoute>
                   <Index />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
                 </ProtectedRoute>
               } 
             />
