@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import Canvas from '../components/Canvas';
 import { Sidebar } from '../components/Sidebar';
@@ -34,6 +35,7 @@ interface WindowPropertiesType {
   width: number;
   height: number;
   title: string;
+  bgColor: string;
 }
 
 const Index = () => {
@@ -42,7 +44,8 @@ const Index = () => {
   const [windowProperties, setWindowProperties] = useState<WindowPropertiesType>({
     width: 800,
     height: 600,
-    title: 'My App'
+    title: 'My App',
+    bgColor: '#FFFFFF'
   });
   const [showCodePreview, setShowCodePreview] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
@@ -83,16 +86,16 @@ const Index = () => {
       if (savedProject) {
         const projectData = JSON.parse(savedProject);
         setWidgets(projectData.widgets || []);
-        setWindowProperties(projectData.windowProperties || { width: 800, height: 600, title: 'My App' });
+        setWindowProperties(projectData.windowProperties || { width: 800, height: 600, title: 'My App', bgColor: '#FFFFFF' });
       } else {
         // Start with blank canvas for new project
         setWidgets([]);
-        setWindowProperties({ width: 800, height: 600, title: 'New Project' });
+        setWindowProperties({ width: 800, height: 600, title: 'New Project', bgColor: '#FFFFFF' });
       }
     } else {
       // No project ID - start with blank canvas
       setWidgets([]);
-      setWindowProperties({ width: 800, height: 600, title: 'New Project' });
+      setWindowProperties({ width: 800, height: 600, title: 'New Project', bgColor: '#FFFFFF' });
     }
   }, [projectId]);
 
@@ -166,13 +169,11 @@ const Index = () => {
     setWidgets(newWidgets);
   };
 
-  const handleComponentUpdate = (updatedComponent: Component) => {
-    const updatedWidget = componentToWidget(updatedComponent);
-    updateWidget(updatedWidget);
-  };
-
-  const handleOrderChange = (newOrder: Widget[]) => {
-    setWidgets(newOrder);
+  const handleOrderChange = (fromIndex: number, toIndex: number) => {
+    const newWidgets = [...widgets];
+    const [movedWidget] = newWidgets.splice(fromIndex, 1);
+    newWidgets.splice(toIndex, 0, movedWidget);
+    setWidgets(newWidgets);
   };
 
   return (
@@ -221,8 +222,17 @@ const Index = () => {
                   setComponents={handleComponentsChange}
                   selectedComponent={selectedWidget ? widgetToComponent(selectedWidget) : null}
                   setSelectedComponent={(component) => setSelectedWidget(component ? componentToWidget(component) : null)}
+                  selectedComponents={selectedWidget ? [selectedWidget.id] : []}
+                  setSelectedComponents={(ids) => {
+                    if (ids.length > 0) {
+                      const widget = widgets.find(w => w.id === ids[0]);
+                      setSelectedWidget(widget || null);
+                    } else {
+                      setSelectedWidget(null);
+                    }
+                  }}
                   windowSize={{ width: windowProperties.width, height: windowProperties.height }}
-                  onComponentUpdate={handleComponentUpdate}
+                  windowBgColor={windowProperties.bgColor}
                 />
               </WatermarkedCanvas>
             ) : (
@@ -231,8 +241,17 @@ const Index = () => {
                 setComponents={handleComponentsChange}
                 selectedComponent={selectedWidget ? widgetToComponent(selectedWidget) : null}
                 setSelectedComponent={(component) => setSelectedWidget(component ? componentToWidget(component) : null)}
+                selectedComponents={selectedWidget ? [selectedWidget.id] : []}
+                setSelectedComponents={(ids) => {
+                  if (ids.length > 0) {
+                    const widget = widgets.find(w => w.id === ids[0]);
+                    setSelectedWidget(widget || null);
+                  } else {
+                    setSelectedWidget(null);
+                  }
+                }}
                 windowSize={{ width: windowProperties.width, height: windowProperties.height }}
-                onComponentUpdate={handleComponentUpdate}
+                windowBgColor={windowProperties.bgColor}
               />
             )}
           </div>
@@ -246,6 +265,8 @@ const Index = () => {
               setTitle={(title) => setWindowProperties({...windowProperties, title})}
               size={{ width: windowProperties.width, height: windowProperties.height }}
               setSize={(size) => setWindowProperties({...windowProperties, ...size})}
+              bgColor={windowProperties.bgColor}
+              setBgColor={(bgColor) => setWindowProperties({...windowProperties, bgColor})}
             />
             {selectedWidget && (
               <PropertyPanel 
