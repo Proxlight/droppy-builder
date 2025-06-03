@@ -1,13 +1,13 @@
-
 import { Subscription } from '@/hooks/useSubscription';
 
 export const FEATURES = {
   EXPORT_CODE: 'export_code',
-  ADVANCED_WIDGETS: 'advanced_widgets',
+  ADVANCED_WIDGETS: 'advanced_widgets', 
   REMOVE_WATERMARK: 'remove_watermark',
   UNLIMITED_CANVAS: 'unlimited_canvas',
   PRIORITY_SUPPORT: 'priority_support',
   CUSTOM_INTEGRATIONS: 'custom_integrations',
+  CREATE_PROJECTS: 'create_projects'
 };
 
 export const TIER_FEATURES = {

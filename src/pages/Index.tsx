@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Canvas from '../components/Canvas';
 import { Sidebar } from '../components/Sidebar';
@@ -21,6 +20,14 @@ interface Widget {
   width: number;
   height: number;
   properties: any;
+}
+
+interface Component {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  props: any;
 }
 
 interface WindowPropertiesType {
@@ -48,6 +55,26 @@ const Index = () => {
   
   const canExportCode = hasFeature(subscription, FEATURES.EXPORT_CODE);
   const shouldShowWatermark = !hasFeature(subscription, FEATURES.REMOVE_WATERMARK);
+
+  // Convert Widget to Component
+  const widgetToComponent = (widget: Widget): Component => ({
+    id: widget.id,
+    type: widget.type,
+    position: { x: widget.x, y: widget.y },
+    size: { width: widget.width, height: widget.height },
+    props: widget.properties
+  });
+
+  // Convert Component to Widget
+  const componentToWidget = (component: Component): Widget => ({
+    id: component.id,
+    type: component.type,
+    x: component.position.x,
+    y: component.position.y,
+    width: component.size.width,
+    height: component.size.height,
+    properties: component.props
+  });
 
   useEffect(() => {
     if (projectId) {
@@ -132,10 +159,16 @@ const Index = () => {
     }
   };
 
-  const handleComponentsChange = (newComponents: Widget[]) => {
+  const handleComponentsChange = (newComponents: Component[]) => {
+    const newWidgets = newComponents.map(componentToWidget);
     setUndoStack([...undoStack, widgets]);
     setRedoStack([]);
-    setWidgets(newComponents);
+    setWidgets(newWidgets);
+  };
+
+  const handleComponentUpdate = (updatedComponent: Component) => {
+    const updatedWidget = componentToWidget(updatedComponent);
+    updateWidget(updatedWidget);
   };
 
   const handleOrderChange = (newOrder: Widget[]) => {
@@ -184,22 +217,22 @@ const Index = () => {
             {shouldShowWatermark ? (
               <WatermarkedCanvas>
                 <Canvas 
-                  components={widgets}
+                  components={widgets.map(widgetToComponent)}
                   setComponents={handleComponentsChange}
-                  selectedComponent={selectedWidget}
-                  setSelectedComponent={setSelectedWidget}
+                  selectedComponent={selectedWidget ? widgetToComponent(selectedWidget) : null}
+                  setSelectedComponent={(component) => setSelectedWidget(component ? componentToWidget(component) : null)}
                   windowSize={{ width: windowProperties.width, height: windowProperties.height }}
-                  onComponentUpdate={updateWidget}
+                  onComponentUpdate={handleComponentUpdate}
                 />
               </WatermarkedCanvas>
             ) : (
               <Canvas 
-                components={widgets}
+                components={widgets.map(widgetToComponent)}
                 setComponents={handleComponentsChange}
-                selectedComponent={selectedWidget}
-                setSelectedComponent={setSelectedWidget}
+                selectedComponent={selectedWidget ? widgetToComponent(selectedWidget) : null}
+                setSelectedComponent={(component) => setSelectedWidget(component ? componentToWidget(component) : null)}
                 windowSize={{ width: windowProperties.width, height: windowProperties.height }}
-                onComponentUpdate={updateWidget}
+                onComponentUpdate={handleComponentUpdate}
               />
             )}
           </div>
@@ -213,8 +246,6 @@ const Index = () => {
               setTitle={(title) => setWindowProperties({...windowProperties, title})}
               size={{ width: windowProperties.width, height: windowProperties.height }}
               setSize={(size) => setWindowProperties({...windowProperties, ...size})}
-              onDelete={() => {}}
-              onDuplicate={() => {}}
             />
             {selectedWidget && (
               <PropertyPanel 
@@ -227,7 +258,7 @@ const Index = () => {
             <Layers 
               visible={true}
               components={widgets}
-              onComponentsChange={handleComponentsChange}
+              onComponentsChange={setWidgets}
               selectedComponent={selectedWidget}
               setSelectedComponent={setSelectedWidget}
               onOrderChange={handleOrderChange}
