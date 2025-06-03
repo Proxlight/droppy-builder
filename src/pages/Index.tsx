@@ -38,6 +38,9 @@ const Index = () => {
     title: 'My App'
   });
   const [showCodePreview, setShowCodePreview] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [undoStack, setUndoStack] = useState<Widget[][]>([]);
+  const [redoStack, setRedoStack] = useState<Widget[][]>([]);
   
   const { subscription } = useAuth();
   const navigate = useNavigate();
@@ -111,6 +114,34 @@ const Index = () => {
     navigate('/');
   };
 
+  const handleUndo = () => {
+    if (undoStack.length > 0) {
+      const previousState = undoStack[undoStack.length - 1];
+      setRedoStack([...redoStack, widgets]);
+      setWidgets(previousState);
+      setUndoStack(undoStack.slice(0, -1));
+    }
+  };
+
+  const handleRedo = () => {
+    if (redoStack.length > 0) {
+      const nextState = redoStack[redoStack.length - 1];
+      setUndoStack([...undoStack, widgets]);
+      setWidgets(nextState);
+      setRedoStack(redoStack.slice(0, -1));
+    }
+  };
+
+  const handleComponentsChange = (newComponents: Widget[]) => {
+    setUndoStack([...undoStack, widgets]);
+    setRedoStack([]);
+    setWidgets(newComponents);
+  };
+
+  const handleOrderChange = (newOrder: Widget[]) => {
+    setWidgets(newOrder);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gray-100">
       {/* Header with Navigation */}
@@ -132,7 +163,15 @@ const Index = () => {
         </div>
         
         <div className="flex items-center space-x-2">
-          <Toolbar />
+          <Toolbar 
+            components={widgets}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={undoStack.length > 0}
+            canRedo={redoStack.length > 0}
+            onToggleCodePreview={() => setShowCodePreview(!showCodePreview)}
+            showCodePreview={showCodePreview}
+          />
         </div>
       </div>
 
@@ -143,26 +182,63 @@ const Index = () => {
         <div className="flex-1 flex flex-col">
           <div className="flex-1 p-4 overflow-auto">
             {shouldShowWatermark ? (
-              <WatermarkedCanvas />
+              <WatermarkedCanvas>
+                <Canvas 
+                  components={widgets}
+                  setComponents={handleComponentsChange}
+                  selectedComponent={selectedWidget}
+                  setSelectedComponent={setSelectedWidget}
+                  windowSize={{ width: windowProperties.width, height: windowProperties.height }}
+                  onComponentUpdate={updateWidget}
+                />
+              </WatermarkedCanvas>
             ) : (
-              <Canvas />
+              <Canvas 
+                components={widgets}
+                setComponents={handleComponentsChange}
+                selectedComponent={selectedWidget}
+                setSelectedComponent={setSelectedWidget}
+                windowSize={{ width: windowProperties.width, height: windowProperties.height }}
+                onComponentUpdate={updateWidget}
+              />
             )}
           </div>
         </div>
 
         <div className="w-80 border-l bg-white flex flex-col">
           <div className="flex-1 overflow-auto">
-            <WindowProperties />
+            <WindowProperties 
+              visible={true}
+              title={windowProperties.title}
+              setTitle={(title) => setWindowProperties({...windowProperties, title})}
+              size={{ width: windowProperties.width, height: windowProperties.height }}
+              setSize={(size) => setWindowProperties({...windowProperties, ...size})}
+              onDelete={() => {}}
+              onDuplicate={() => {}}
+            />
             {selectedWidget && (
-              <PropertyPanel />
+              <PropertyPanel 
+                selectedComponent={selectedWidget}
+                onUpdate={updateWidget}
+                setInputFocused={setInputFocused}
+                inputFocused={inputFocused}
+              />
             )}
             <Layers 
               visible={true}
+              components={widgets}
+              onComponentsChange={handleComponentsChange}
+              selectedComponent={selectedWidget}
+              setSelectedComponent={setSelectedWidget}
+              onOrderChange={handleOrderChange}
             />
           </div>
           {showCodePreview && canExportCode && (
             <div className="border-t">
-              <CodePreview />
+              <CodePreview 
+                components={widgets}
+                visible={showCodePreview}
+              />
             </div>
           )}
         </div>
