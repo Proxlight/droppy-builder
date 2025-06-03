@@ -1,40 +1,32 @@
-
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
-import { Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import AuthPage from "./components/Auth/AuthPage";
-import PricingPlans from "./components/Subscription/PricingPlans";
-import ProfilePage from "./components/Profile/ProfilePage";
-import Dashboard from "./components/Dashboard/Dashboard";
-import GumroadVerification from "./components/GumroadVerification";
-import { AuthProvider } from "./contexts/AuthContext";
-import ProtectedRoute from "./components/Auth/ProtectedRoute";
-import { SubscriptionExpiryChecker } from "./components/SubscriptionExpiryChecker";
-import "./App.css";
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { Toaster } from 'sonner';
+import { AuthProvider } from './contexts/AuthContext';
+import AuthPage from './pages/AuthPage';
+import ProfilePage from './pages/ProfilePage';
+import NotFound from './pages/NotFound';
+import ProtectedRoute from './components/ProtectedRoute';
+import { QueryClient, QueryClientProvider } from 'react-query';
+import { SubscriptionExpiryChecker } from './components/SubscriptionExpiryChecker';
+import { Dashboard } from './components/Dashboard/Dashboard';
+import Index from './pages/Index';
 
 const queryClient = new QueryClient();
 
-const App = () => {
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
+        <Router>
           <Toaster />
-          <Sonner />
-          <GumroadVerification />
           <SubscriptionExpiryChecker />
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/pricing" element={<PricingPlans />} />
             <Route 
-              path="/profile" 
+              path="/" 
               element={
                 <ProtectedRoute>
-                  <ProfilePage />
+                  <Dashboard />
                 </ProtectedRoute>
               } 
             />
@@ -47,20 +39,27 @@ const App = () => {
               } 
             />
             <Route 
-              path="/" 
+              path="/canvas/:projectId" 
               element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <Index />
                 </ProtectedRoute>
               } 
             />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } 
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </TooltipProvider>
+        </Router>
       </AuthProvider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;

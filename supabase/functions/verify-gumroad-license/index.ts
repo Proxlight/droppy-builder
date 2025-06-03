@@ -1,177 +1,181 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.1";
-
-const SUPABASE_URL = "https://mmcmimmzgvovmvnbsznv.supabase.co";
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const logStep = (step: string, details?: any) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[VERIFY-LICENSE] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    logStep("Function started");
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { persistSession: false } }
+    );
+
     const { licenseKey, userId } = await req.json();
+    logStep("Verifying license for user", { userId, license: licenseKey });
 
     if (!licenseKey || !userId) {
-      return new Response(
-        JSON.stringify({ error: "License key and user ID are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      throw new Error('License key and user ID are required');
     }
 
-    console.log(`Verifying license for user: ${userId}, license: ${licenseKey}`);
+    // Check if this license key has already been used by another user
+    const { data: existingSubscription, error: checkError } = await supabaseClient
+      .from('user_subscriptions')
+      .select('user_id, gumroad_purchase_id')
+      .eq('gumroad_purchase_id', licenseKey)
+      .neq('user_id', userId)
+      .maybeSingle();
 
-    // Create a Supabase client with the service role key
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    if (checkError && checkError.code !== 'PGRST116') {
+      logStep("Error checking existing license usage", checkError);
+      throw new Error('Failed to verify license uniqueness');
+    }
 
-    // Product IDs for different tiers
-    const proProductId = 'vxwrgFi49_CZb5Yrghn7EA==';
-    const standardProductId = 'FPvNjFxa5sPWtpTzMtRIcw==';
+    if (existingSubscription) {
+      logStep("License key already used by another user", { existingUserId: existingSubscription.user_id });
+      throw new Error('This license key has already been activated by another user');
+    }
 
-    let gumroadData = null;
-    let tier = 'standard';
-    let productId = standardProductId;
+    // Product IDs for verification
+    const STANDARD_PRODUCT_ID = 'FPvNjFxa5sPWtpTzMtRIcw==';
+    const PRO_PRODUCT_ID = 'vxwrgFi49_CZb5Yrghn7EA==';
 
-    // First try pro product ID (yearly plan)
+    let verificationResult = null;
+    let tier = null;
+    let expiresAt = null;
+
+    // Try Pro plan first
+    logStep("Trying pro product ID", { productId: PRO_PRODUCT_ID });
     try {
-      console.log(`Trying pro product ID: ${proProductId}`);
-      const proResponse = await fetch(`https://api.gumroad.com/v2/licenses/verify`, {
+      const proResponse = await fetch('https://api.gumroad.com/v2/licenses/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          'product_id': proProductId,
-          'license_key': licenseKey,
-          'increment_uses_count': 'false'
-        })
+          product_id: PRO_PRODUCT_ID,
+          license_key: licenseKey,
+          increment_uses_count: 'false'
+        }),
       });
 
-      const proData = await proResponse.json();
-      console.log('Pro verification response:', proData);
-      
-      if (proData.success) {
-        gumroadData = proData;
+      const proResult = await proResponse.json();
+      logStep("Pro verification response", proResult);
+
+      if (proResult.success) {
+        verificationResult = proResult;
         tier = 'pro';
-        productId = proProductId;
-        console.log('License verified as Pro plan');
+        // Pro is yearly plan - expires in 1 year from purchase
+        const purchaseDate = new Date(proResult.purchase.sale_timestamp);
+        expiresAt = new Date(purchaseDate.getTime() + (365 * 24 * 60 * 60 * 1000)).toISOString();
+        logStep("License verified as Pro plan", { expiresAt });
       }
     } catch (error) {
-      console.log('Pro verification failed, trying standard:', error);
+      logStep("Error verifying pro license", error);
     }
 
-    // If pro failed, try standard product ID (monthly plan)
-    if (!gumroadData) {
+    // If Pro verification failed, try Standard plan
+    if (!verificationResult) {
+      logStep("Trying standard product ID", { productId: STANDARD_PRODUCT_ID });
       try {
-        console.log(`Trying standard product ID: ${standardProductId}`);
-        const standardResponse = await fetch(`https://api.gumroad.com/v2/licenses/verify`, {
+        const standardResponse = await fetch('https://api.gumroad.com/v2/licenses/verify', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams({
-            'product_id': standardProductId,
-            'license_key': licenseKey,
-            'increment_uses_count': 'false'
-          })
+            product_id: STANDARD_PRODUCT_ID,
+            license_key: licenseKey,
+            increment_uses_count: 'false'
+          }),
         });
 
-        const standardData = await standardResponse.json();
-        console.log('Standard verification response:', standardData);
-        
-        if (standardData.success) {
-          gumroadData = standardData;
+        const standardResult = await standardResponse.json();
+        logStep("Standard verification response", standardResult);
+
+        if (standardResult.success) {
+          verificationResult = standardResult;
           tier = 'standard';
-          productId = standardProductId;
-          console.log('License verified as Standard plan');
+          // Standard is monthly plan - expires in 1 month from purchase
+          const purchaseDate = new Date(standardResult.purchase.sale_timestamp);
+          expiresAt = new Date(purchaseDate.getTime() + (30 * 24 * 60 * 60 * 1000)).toISOString();
+          logStep("License verified as Standard plan", { expiresAt });
         }
       } catch (error) {
-        console.log('Standard verification failed:', error);
+        logStep("Error verifying standard license", error);
       }
     }
 
-    if (!gumroadData || !gumroadData.success) {
-      console.log('License verification failed for both products');
-      return new Response(
-        JSON.stringify({ error: "Invalid license key or license expired" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!verificationResult) {
+      throw new Error('Invalid license key or license not found for any of our products');
     }
 
-    // Calculate expiration date based on tier
-    const purchaseData = gumroadData.purchase;
-    const purchaseDate = new Date(purchaseData.created_at);
-    let expiresAt;
-    
-    if (tier === "standard") {
-      // Standard plan: 1 month from purchase
-      expiresAt = new Date(purchaseDate);
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-    } else if (tier === "pro") {
-      // Pro plan: 1 year from purchase
-      expiresAt = new Date(purchaseDate);
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    }
+    // Update or create subscription in database
+    logStep("Updating subscription for user", { userId, tier, expires: expiresAt });
 
-    console.log(`Updating subscription for user ${userId}: tier=${tier}, expires=${expiresAt?.toISOString()}`);
-
-    // First, delete any existing subscription for the user to avoid conflicts
-    const { error: deleteError } = await supabase
-      .from("user_subscriptions")
-      .delete()
-      .eq('user_id', userId);
-
-    if (deleteError) {
-      console.log("Note: No existing subscription to delete or delete failed:", deleteError);
-    }
-
-    // Insert new subscription
-    const { data, error } = await supabase
-      .from("user_subscriptions")
-      .insert({
+    const { data: subscriptionData, error: subscriptionError } = await supabaseClient
+      .from('user_subscriptions')
+      .upsert({
         user_id: userId,
         tier: tier,
-        starts_at: purchaseDate.toISOString(),
-        expires_at: expiresAt?.toISOString(),
-        gumroad_product_id: productId,
-        gumroad_purchase_id: purchaseData.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        starts_at: new Date().toISOString(),
+        expires_at: expiresAt,
+        gumroad_product_id: tier === 'pro' ? PRO_PRODUCT_ID : STANDARD_PRODUCT_ID,
+        gumroad_purchase_id: verificationResult.purchase.id,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'user_id'
       })
       .select();
 
-    if (error) {
-      console.error("Error inserting subscription:", error);
-      return new Response(
-        JSON.stringify({ error: "Failed to update subscription", details: error.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (subscriptionError) {
+      logStep("Subscription update error", subscriptionError);
+      throw new Error(`Failed to update subscription: ${subscriptionError.message}`);
     }
 
-    console.log("Subscription created successfully:", data);
+    logStep("Subscription updated successfully", subscriptionData);
 
     return new Response(
-      JSON.stringify({ 
-        message: "License verified and subscription updated successfully",
-        subscription: data[0],
+      JSON.stringify({
+        success: true,
         tier: tier,
-        expiresAt: expiresAt?.toISOString()
+        expiresAt: expiresAt,
+        message: `License verified successfully! Your ${tier} plan has been activated.`
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
     );
 
   } catch (error) {
-    console.error("Error processing request:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    logStep("ERROR in verify-gumroad-license", { message: errorMessage });
+    
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ 
+        success: false, 
+        error: errorMessage 
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      }
     );
   }
 });

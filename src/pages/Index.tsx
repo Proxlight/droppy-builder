@@ -1,15 +1,17 @@
+
 import { useState, useEffect } from 'react';
 import Canvas from '../components/Canvas';
-import Sidebar from '../components/Sidebar';
-import PropertyPanel from '../components/PropertyPanel';
-import Toolbar from '../components/Toolbar';
-import WindowProperties from '../components/WindowProperties';
-import CodePreview from '../components/CodePreview';
-import Layers from '../components/Layers';
+import { Sidebar } from '../components/Sidebar';
+import { PropertyPanel } from '../components/PropertyPanel';
+import { Toolbar } from '../components/Toolbar';
+import { WindowProperties } from '../components/WindowProperties';
+import { CodePreview } from '../components/CodePreview';
+import { Layers } from '../components/Layers';
 import WatermarkedCanvas from '../components/WatermarkedCanvas';
 import { DashboardNav } from '@/components/Navigation/DashboardNav';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasFeature, FEATURES } from '@/utils/subscriptionUtils';
+import { useNavigate, useParams } from 'react-router-dom';
 
 interface Widget {
   id: string;
@@ -36,19 +38,65 @@ const Index = () => {
     title: 'My App'
   });
   const [showCodePreview, setShowCodePreview] = useState(false);
-
+  
   const { subscription } = useAuth();
+  const navigate = useNavigate();
+  const { projectId } = useParams();
+  
   const canExportCode = hasFeature(subscription, FEATURES.EXPORT_CODE);
   const shouldShowWatermark = !hasFeature(subscription, FEATURES.REMOVE_WATERMARK);
 
   useEffect(() => {
-    const savedProject = localStorage.getItem('currentProject');
-    if (savedProject) {
-      const projectData = JSON.parse(savedProject);
-      setWidgets(projectData.data.widgets || []);
-      setWindowProperties(projectData.data.windowProperties || { width: 800, height: 600, title: 'My App' });
+    if (projectId) {
+      // Load specific project
+      const savedProject = localStorage.getItem(`project_${projectId}`);
+      if (savedProject) {
+        const projectData = JSON.parse(savedProject);
+        setWidgets(projectData.widgets || []);
+        setWindowProperties(projectData.windowProperties || { width: 800, height: 600, title: 'My App' });
+      } else {
+        // Start with blank canvas for new project
+        setWidgets([]);
+        setWindowProperties({ width: 800, height: 600, title: 'New Project' });
+      }
+    } else {
+      // No project ID - start with blank canvas
+      setWidgets([]);
+      setWindowProperties({ width: 800, height: 600, title: 'New Project' });
     }
-  }, []);
+  }, [projectId]);
+
+  // Auto-save project changes
+  useEffect(() => {
+    if (projectId) {
+      const projectData = {
+        id: projectId,
+        name: windowProperties.title,
+        widgets,
+        windowProperties,
+        lastModified: new Date().toISOString()
+      };
+      localStorage.setItem(`project_${projectId}`, JSON.stringify(projectData));
+      
+      // Update projects list
+      const existingProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+      const projectIndex = existingProjects.findIndex((p: any) => p.id === projectId);
+      if (projectIndex >= 0) {
+        existingProjects[projectIndex] = {
+          id: projectId,
+          name: windowProperties.title,
+          lastModified: new Date().toISOString()
+        };
+      } else {
+        existingProjects.push({
+          id: projectId,
+          name: windowProperties.title,
+          lastModified: new Date().toISOString()
+        });
+      }
+      localStorage.setItem('projects', JSON.stringify(existingProjects));
+    }
+  }, [widgets, windowProperties, projectId]);
 
   const updateWidget = (updatedWidget: Widget) => {
     setWidgets(widgets.map(widget => widget.id === updatedWidget.id ? updatedWidget : widget));
@@ -57,6 +105,10 @@ const Index = () => {
   const deleteWidget = (widgetId: string) => {
     setWidgets(widgets.filter(widget => widget.id !== widgetId));
     setSelectedWidget(null);
+  };
+
+  const handleBackToDashboard = () => {
+    navigate('/');
   };
 
   return (
@@ -70,6 +122,12 @@ const Index = () => {
             </div>
             <span className="font-semibold text-gray-900">Buildfy Canvas</span>
           </div>
+          <button
+            onClick={handleBackToDashboard}
+            className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            ← Back to Dashboard
+          </button>
           <DashboardNav />
         </div>
         
@@ -122,10 +180,17 @@ const Index = () => {
               />
             )}
             <Layers 
-              widgets={widgets}
-              selectedWidget={selectedWidget}
-              onSelectWidget={setSelectedWidget}
-              onDeleteWidget={deleteWidget}
+              components={widgets}
+              onComponentsChange={setWidgets}
+              selectedComponent={selectedWidget}
+              setSelectedComponent={setSelectedWidget}
+              onOrderChange={(fromIndex: number, toIndex: number) => {
+                const newWidgets = [...widgets];
+                const [removed] = newWidgets.splice(fromIndex, 1);
+                newWidgets.splice(toIndex, 0, removed);
+                setWidgets(newWidgets);
+              }}
+              visible={true}
             />
           </div>
           {showCodePreview && canExportCode && (

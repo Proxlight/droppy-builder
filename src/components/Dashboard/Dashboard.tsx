@@ -1,361 +1,404 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
+import { LicenseVerification } from '@/components/LicenseVerification';
+import { PricingPlans } from '@/components/Subscription/PricingPlans';
+import { 
+  Plus, 
+  FolderOpen, 
+  Trash2, 
+  Edit3, 
+  Clock, 
+  Crown,
+  Sparkles,
+  Zap
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { Plus, MoreVertical, Folder, Clock, User, Settings, Zap, Crown, Star, Calendar } from 'lucide-react';
 
 interface Project {
   id: string;
   name: string;
-  createdAt: string;
   lastModified: string;
-  data?: any;
 }
 
-export default function Dashboard() {
-  const { user, subscription, signOut } = useAuth();
-  const navigate = useNavigate();
+export const Dashboard = () => {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [showLicenseVerification, setShowLicenseVerification] = useState(false);
+  const [showPricingPlans, setShowPricingPlans] = useState(false);
   const [editingProject, setEditingProject] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
+  const [newProjectName, setNewProjectName] = useState('');
+  
+  const { user, subscription } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadProjects();
   }, []);
 
   const loadProjects = () => {
-    const savedProjects = localStorage.getItem('buildfy_projects');
+    const savedProjects = localStorage.getItem('projects');
     if (savedProjects) {
-      setProjects(JSON.parse(savedProjects));
+      const parsedProjects = JSON.parse(savedProjects);
+      // Sort by last modified date (most recent first)
+      parsedProjects.sort((a: Project, b: Project) => 
+        new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+      );
+      setProjects(parsedProjects);
     }
   };
 
-  const saveProjects = (updatedProjects: Project[]) => {
-    localStorage.setItem('buildfy_projects', JSON.stringify(updatedProjects));
-    setProjects(updatedProjects);
-  };
-
-  const createProject = () => {
-    if (!newProjectName.trim()) {
-      toast.error('Please enter a project name');
-      return;
-    }
-
+  const createNewProject = () => {
+    const projectId = `project_${Date.now()}`;
     const newProject: Project = {
-      id: Date.now().toString(),
-      name: newProjectName.trim(),
-      createdAt: new Date().toISOString(),
-      lastModified: new Date().toISOString(),
-      data: {
-        widgets: [],
-        windowProperties: {
-          width: 800,
-          height: 600,
-          title: 'My App'
-        }
-      }
+      id: projectId,
+      name: 'Untitled Project',
+      lastModified: new Date().toISOString()
     };
 
     const updatedProjects = [newProject, ...projects];
-    saveProjects(updatedProjects);
-    setNewProjectName('');
-    setIsCreateDialogOpen(false);
-    toast.success('Project created successfully');
+    setProjects(updatedProjects);
+    localStorage.setItem('projects', JSON.stringify(updatedProjects));
+    
+    // Navigate to the new project with blank canvas
+    navigate(`/canvas/${projectId}`);
+    toast.success('New project created!');
   };
 
-  const deleteProject = (projectId: string) => {
+  const openProject = (projectId: string) => {
+    navigate(`/canvas/${projectId}`);
+  };
+
+  const deleteProject = (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
     const updatedProjects = projects.filter(p => p.id !== projectId);
-    saveProjects(updatedProjects);
+    setProjects(updatedProjects);
+    localStorage.setItem('projects', JSON.stringify(updatedProjects));
+    localStorage.removeItem(`project_${projectId}`);
+    
     toast.success('Project deleted successfully');
   };
 
-  const renameProject = (projectId: string) => {
-    if (!editName.trim()) {
-      toast.error('Please enter a project name');
+  const startRename = (projectId: string, currentName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingProject(projectId);
+    setNewProjectName(currentName);
+  };
+
+  const saveRename = (projectId: string) => {
+    if (!newProjectName.trim()) {
+      toast.error('Project name cannot be empty');
       return;
     }
 
     const updatedProjects = projects.map(p => 
-      p.id === projectId 
-        ? { ...p, name: editName.trim(), lastModified: new Date().toISOString() }
-        : p
+      p.id === projectId ? { ...p, name: newProjectName.trim() } : p
     );
-    saveProjects(updatedProjects);
+    setProjects(updatedProjects);
+    localStorage.setItem('projects', JSON.stringify(updatedProjects));
+    
+    // Update the specific project data as well
+    const projectData = localStorage.getItem(`project_${projectId}`);
+    if (projectData) {
+      const parsed = JSON.parse(projectData);
+      parsed.name = newProjectName.trim();
+      if (parsed.windowProperties) {
+        parsed.windowProperties.title = newProjectName.trim();
+      }
+      localStorage.setItem(`project_${projectId}`, JSON.stringify(parsed));
+    }
+    
     setEditingProject(null);
-    setEditName('');
+    setNewProjectName('');
     toast.success('Project renamed successfully');
   };
 
-  const openProject = (project: Project) => {
-    localStorage.setItem('currentProject', JSON.stringify(project));
-    navigate('/canvas');
+  const cancelRename = () => {
+    setEditingProject(null);
+    setNewProjectName('');
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getTimeLeft = () => {
-    if (!subscription?.expires_at) return null;
-    
-    const expiryDate = new Date(subscription.expires_at);
+    const date = new Date(dateString);
     const now = new Date();
-    const timeLeft = expiryDate.getTime() - now.getTime();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
-    if (timeLeft <= 0) return 'Expired';
-    
-    const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-    
-    if (days > 0) {
-      return `${days} day${days > 1 ? 's' : ''} left`;
-    } else {
-      return 'Less than 1 day left';
-    }
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return date.toLocaleDateString();
   };
 
-  const getTierIcon = (tier: string) => {
+  const getPlanIcon = (tier: string) => {
     switch (tier) {
       case 'pro':
-        return <Crown className="h-4 w-4" />;
+        return <Crown className="h-4 w-4 text-purple-600" />;
       case 'standard':
-        return <Star className="h-4 w-4" />;
+        return <Sparkles className="h-4 w-4 text-blue-600" />;
       default:
-        return <Zap className="h-4 w-4" />;
+        return <Zap className="h-4 w-4 text-gray-600" />;
     }
   };
 
-  const getTierColor = (tier: string) => {
+  const getPlanColor = (tier: string) => {
     switch (tier) {
       case 'pro':
-        return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white';
+        return 'from-purple-600 to-pink-600';
       case 'standard':
-        return 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white';
+        return 'from-blue-600 to-cyan-600';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'from-gray-600 to-gray-700';
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/auth');
-      toast.success('Signed out successfully');
-    } catch (error) {
-      toast.error('Error signing out');
-    }
+  const getRenewalDate = () => {
+    if (!subscription?.expires_at) return null;
+    return new Date(subscription.expires_at).toLocaleDateString();
   };
+
+  const isSubscriptionActive = subscription?.tier && subscription.tier !== 'free';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
-      {/* Modern Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">B</span>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                    Buildfy
-                  </h1>
-                  <p className="text-sm text-gray-600">Welcome back, {user?.email}</p>
-                </div>
+              <div className={`w-10 h-10 bg-gradient-to-r ${getPlanColor(subscription?.tier || 'free')} rounded-xl flex items-center justify-center shadow-lg`}>
+                <span className="text-white font-bold text-lg">B</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Buildfy Canvas</h1>
+                <p className="text-sm text-gray-600">Visual Application Builder</p>
               </div>
             </div>
             
             <div className="flex items-center space-x-4">
-              {subscription && (
-                <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium ${getTierColor(subscription.tier)}`}>
-                  {getTierIcon(subscription.tier)}
-                  <span className="capitalize">{subscription.tier} Plan</span>
-                  {subscription.expires_at && (
-                    <div className="flex items-center space-x-1 ml-2 pl-2 border-l border-white/30">
-                      <Calendar className="h-3 w-3" />
-                      <span className="text-xs">{getTimeLeft()}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* Subscription Status */}
+              <div className="flex items-center space-x-2">
+                {getPlanIcon(subscription?.tier || 'free')}
+                <Badge variant={subscription?.tier === 'pro' ? 'default' : subscription?.tier === 'standard' ? 'secondary' : 'outline'}>
+                  {subscription?.tier?.toUpperCase() || 'FREE'} Plan
+                </Badge>
+                {getRenewalDate() && (
+                  <span className="text-sm text-gray-600">
+                    Renews: {getRenewalDate()}
+                  </span>
+                )}
+              </div>
               
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center space-x-2">
-                    <User className="h-4 w-4" />
-                    <span>Account</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => navigate('/profile')}>
-                    <Settings className="h-4 w-4 mr-2" />
-                    Profile Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/pricing')}>
-                    <Crown className="h-4 w-4 mr-2" />
-                    Upgrade Plan
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button 
+                onClick={() => navigate('/profile')}
+                variant="outline"
+                size="sm"
+              >
+                Profile
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
-        {/* Projects Section */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Projects</h2>
-            <p className="text-gray-600">{projects.length} project{projects.length !== 1 ? 's' : ''} • Build amazing apps with ease</p>
-          </div>
-          
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Projects Section */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900">Your Projects</h2>
+                <p className="text-gray-600 mt-1">Create and manage your application designs</p>
+              </div>
+              <Button 
+                onClick={createNewProject}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 New Project
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Create New Project</DialogTitle>
-                <DialogDescription>
-                  Start building your next amazing application
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <Input
-                  placeholder="Enter project name"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && createProject()}
-                  className="focus:ring-2 focus:ring-blue-500"
-                />
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={createProject} className="bg-blue-600 hover:bg-blue-700">
-                    Create Project
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Projects Grid */}
-        {projects.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Folder className="h-8 w-8 text-blue-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No projects yet</h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              Create your first project to start building amazing applications with our visual editor
-            </p>
-            <Button 
-              onClick={() => setIsCreateDialogOpen(true)}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Project
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-md bg-white/80 backdrop-blur-sm hover:bg-white cursor-pointer overflow-hidden">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    {editingProject === project.id ? (
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onBlur={() => renameProject(project.id)}
-                        onKeyPress={(e) => e.key === 'Enter' && renameProject(project.id)}
-                        className="text-lg font-semibold border-0 p-0 h-auto focus:ring-2 focus:ring-blue-500"
-                        autoFocus
-                      />
-                    ) : (
-                      <CardTitle 
-                        className="text-lg font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors"
-                        onClick={() => openProject(project)}
-                      >
-                        {project.name}
-                      </CardTitle>
-                    )}
-                    
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setEditingProject(project.id);
-                            setEditName(project.name);
-                          }}
-                        >
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => deleteProject(project.id)}
-                          className="text-red-600"
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent onClick={() => openProject(project)} className="pt-0">
-                  <div className="space-y-3 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                      <span>Created: {formatDate(project.createdAt)}</span>
+
+            {/* Projects Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {projects.length === 0 ? (
+                <Card className="col-span-full p-12 text-center bg-white/50 backdrop-blur-sm border-dashed border-2 border-gray-300">
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <FolderOpen className="h-8 w-8 text-gray-400" />
                     </div>
-                    <div className="flex items-center">
-                      <User className="h-4 w-4 mr-2 text-green-500" />
-                      <span>Modified: {formatDate(project.lastModified)}</span>
+                    <div>
+                      <h3 className="text-xl font-semibold text-gray-900">No Projects Yet</h3>
+                      <p className="text-gray-600 mt-2">Get started by creating your first project</p>
                     </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-100">
                     <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      onClick={createNewProject}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     >
-                      Open Project →
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create First Project
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                </Card>
+              ) : (
+                projects.map((project) => (
+                  <Card 
+                    key={project.id} 
+                    className="group cursor-pointer hover:shadow-xl transition-all duration-300 bg-white/70 backdrop-blur-sm border-0 shadow-lg hover:scale-105"
+                    onClick={() => openProject(project.id)}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        {editingProject === project.id ? (
+                          <div className="flex items-center space-x-2 flex-1">
+                            <input
+                              type="text"
+                              value={newProjectName}
+                              onChange={(e) => setNewProjectName(e.target.value)}
+                              onBlur={() => saveRename(project.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveRename(project.id);
+                                if (e.key === 'Escape') cancelRename();
+                              }}
+                              className="flex-1 px-2 py-1 text-lg font-semibold border border-gray-300 rounded"
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        ) : (
+                          <CardTitle className="text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
+                            {project.name}
+                          </CardTitle>
+                        )}
+                        
+                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => startRename(project.id, project.name, e)}
+                            className="h-8 w-8 p-0 hover:bg-blue-100"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => deleteProject(project.id, e)}
+                            className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <Clock className="h-4 w-4 mr-2" />
+                        Modified {formatDate(project.lastModified)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </div>
-        )}
+
+          {/* Subscription & Upgrade Section */}
+          <div className="space-y-6">
+            <Card className="bg-gradient-to-br from-white to-blue-50/50 backdrop-blur-sm border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  {getPlanIcon(subscription?.tier || 'free')}
+                  <span>Current Plan</span>
+                </CardTitle>
+                <CardDescription>
+                  You're currently on the {subscription?.tier?.toUpperCase() || 'FREE'} plan
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {getRenewalDate() && (
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Renews on:</strong> {getRenewalDate()}
+                    </p>
+                  </div>
+                )}
+                
+                <div className="space-y-3">
+                  {!isSubscriptionActive ? (
+                    <>
+                      <Button 
+                        onClick={() => setShowLicenseVerification(true)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        <Crown className="h-4 w-4 mr-2" />
+                        Verify License Key
+                      </Button>
+                      
+                      <Button 
+                        onClick={() => setShowPricingPlans(true)}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        View Pricing Plans
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex items-center space-x-2 text-green-800">
+                        <Crown className="h-5 w-5" />
+                        <span className="font-semibold">Premium Active</span>
+                      </div>
+                      <p className="text-sm text-green-700 mt-1">
+                        You have access to all premium features
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle>Quick Stats</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Total Projects</span>
+                    <Badge variant="outline">{projects.length}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Plan Status</span>
+                    <Badge variant={isSubscriptionActive ? "default" : "secondary"}>
+                      {isSubscriptionActive ? "Premium" : "Free"}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
+
+      {/* Modals */}
+      <LicenseVerification
+        isOpen={showLicenseVerification}
+        onClose={() => setShowLicenseVerification(false)}
+        onVerified={() => {
+          setShowLicenseVerification(false);
+          toast.success('License verified successfully!');
+        }}
+      />
+
+      {showPricingPlans && (
+        <PricingPlans onClose={() => setShowPricingPlans(false)} />
+      )}
     </div>
   );
-}
+};
