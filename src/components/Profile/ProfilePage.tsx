@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, User, Mail, Shield, CreditCard, Clock } from 'lucide-react';
@@ -136,167 +137,169 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="space-y-6">
-          {/* Profile Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <User className="h-5 w-5 mr-2" />
-                Profile Information
-              </CardTitle>
-              <CardDescription>
-                Update your personal information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleUpdateProfile} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <ScrollArea className="h-[calc(100vh-200px)]">
+          <div className="space-y-6 pr-4">
+            {/* Profile Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <User className="h-5 w-5 mr-2" />
+                  Profile Information
+                </CardTitle>
+                <CardDescription>
+                  Update your personal information
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={profile.email}
+                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                        className="pl-10"
+                        disabled
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="displayName">Display Name</Label>
                     <Input
-                      id="email"
-                      type="email"
-                      value={profile.email}
-                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                      className="pl-10"
-                      disabled
+                      id="displayName"
+                      value={profile.displayName}
+                      onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
+                      placeholder="Enter your display name"
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="avatarUrl">Avatar URL</Label>
+                    <Input
+                      id="avatarUrl"
+                      value={profile.avatarUrl}
+                      onChange={(e) => setProfile({ ...profile, avatarUrl: e.target.value })}
+                      placeholder="Enter avatar URL"
+                    />
+                  </div>
+
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Updating...' : 'Update Profile'}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Subscription Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Subscription Status
+                </CardTitle>
+                <CardDescription>
+                  Your current subscription details
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Current Plan:</span>
+                    <span className="text-sm capitalize font-semibold">
+                      {subscription?.tier || 'Free'}
+                    </span>
+                  </div>
+                  
+                  {subscription?.expires_at && (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Renewal Date:</span>
+                        <span className="text-sm font-semibold text-blue-600">
+                          {getRenewalDate()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium flex items-center">
+                          <Clock className="h-4 w-4 mr-1" />
+                          Time Left:
+                        </span>
+                        <span className={`text-sm font-medium ${
+                          getTimeLeft() === 'Expired' || getTimeLeft()?.includes('hour') 
+                            ? 'text-red-600' 
+                            : 'text-green-600'
+                        }`}>
+                          {getTimeLeft()}
+                        </span>
+                      </div>
+                    </>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open('https://proxlight02.gumroad.com/l/buildfy', '_blank')}
+                    className="w-full"
+                  >
+                    Manage Subscription
+                  </Button>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Display Name</Label>
-                  <Input
-                    id="displayName"
-                    value={profile.displayName}
-                    onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
-                    placeholder="Enter your display name"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="avatarUrl">Avatar URL</Label>
-                  <Input
-                    id="avatarUrl"
-                    value={profile.avatarUrl}
-                    onChange={(e) => setProfile({ ...profile, avatarUrl: e.target.value })}
-                    placeholder="Enter avatar URL"
-                  />
-                </div>
-
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Updating...' : 'Update Profile'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Subscription Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <CreditCard className="h-5 w-5 mr-2" />
-                Subscription Status
-              </CardTitle>
-              <CardDescription>
-                Your current subscription details
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Current Plan:</span>
-                  <span className="text-sm capitalize font-semibold">
-                    {subscription?.tier || 'Free'}
-                  </span>
-                </div>
-                
-                {subscription?.expires_at && (
-                  <>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Renewal Date:</span>
-                      <span className="text-sm font-semibold text-blue-600">
-                        {getRenewalDate()}
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium flex items-center">
-                        <Clock className="h-4 w-4 mr-1" />
-                        Time Left:
-                      </span>
-                      <span className={`text-sm font-medium ${
-                        getTimeLeft() === 'Expired' || getTimeLeft()?.includes('hour') 
-                          ? 'text-red-600' 
-                          : 'text-green-600'
-                      }`}>
-                        {getTimeLeft()}
-                      </span>
-                    </div>
-                  </>
-                )}
-
+            {/* Account Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Shield className="h-5 w-5 mr-2" />
+                  Account Actions
+                </CardTitle>
+                <CardDescription>
+                  Manage your account security
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/pricing')}
+                  onClick={() => navigate('/auth')}
                   className="w-full"
                 >
-                  Manage Subscription
+                  Change Password
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
+                
+                <Button
+                  variant="destructive"
+                  onClick={handleSignOut}
+                  className="w-full"
+                >
+                  Sign Out
+                </Button>
+              </CardContent>
+            </Card>
 
-          {/* Account Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Shield className="h-5 w-5 mr-2" />
-                Account Actions
-              </CardTitle>
-              <CardDescription>
-                Manage your account security
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                variant="outline"
-                onClick={() => navigate('/auth')}
-                className="w-full"
-              >
-                Change Password
-              </Button>
-              
-              <Button
-                variant="destructive"
-                onClick={handleSignOut}
-                className="w-full"
-              >
-                Sign Out
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Feedback Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Feedback</CardTitle>
-              <CardDescription>
-                Help us improve Buildfy
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => window.open('mailto:proxlight02@gmail.com?subject=User Feedback', '_blank')}
-              >
-                Send Feedback
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Feedback Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Feedback</CardTitle>
+                <CardDescription>
+                  Help us improve Buildfy
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => window.open('mailto:proxlight02@gmail.com?subject=User Feedback', '_blank')}
+                >
+                  Send Feedback
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </ScrollArea>
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { toast } from "sonner";
 import { Maximize2, Minimize2, X, Copy, Scissors, Trash } from "lucide-react";
@@ -94,11 +93,14 @@ const Canvas = ({
     }
   };
 
-  const handleMouseDown = (e: React.MouseEvent, component: Component) => {
+  const handleComponentClick = (e: React.MouseEvent, component: Component) => {
     e.stopPropagation();
-    
     setSelectedComponent(component);
     setSelectedComponents([component.id]);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent, component: Component) => {
+    e.stopPropagation();
     
     const target = e.target as HTMLElement;
     if (target.classList.contains('resize-handle')) {
@@ -413,8 +415,8 @@ const Canvas = ({
             <ContextMenu key={component.id}>
               <ContextMenuTrigger>
                 <div
-                  className={`absolute component-preview cursor-move ${
-                    selectedComponent?.id === component.id ? 'ring-2 ring-primary ring-offset-2' : ''
+                  className={`absolute component-preview cursor-move select-none ${
+                    selectedComponent?.id === component.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                   }`}
                   style={{
                     left: `${component.position.x}px`,
@@ -422,15 +424,16 @@ const Canvas = ({
                     width: `${component.size.width}px`,
                     height: `${component.size.height}px`,
                   }}
+                  onClick={(e) => handleComponentClick(e, component)}
                   onMouseDown={(e) => handleMouseDown(e, component)}
                 >
                   <ComponentPreview component={component} />
                   {selectedComponent?.id === component.id && (
                     <>
-                      <div className="resize-handle absolute w-2 h-2 bg-primary rounded-full top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nw-resize" data-direction="nw" />
-                      <div className="resize-handle absolute w-2 h-2 bg-primary rounded-full top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-ne-resize" data-direction="ne" />
-                      <div className="resize-handle absolute w-2 h-2 bg-primary rounded-full bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-sw-resize" data-direction="sw" />
-                      <div className="resize-handle absolute w-2 h-2 bg-primary rounded-full bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-se-resize" data-direction="se" />
+                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nw-resize z-10" data-direction="nw" />
+                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-ne-resize z-10" data-direction="ne" />
+                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-sw-resize z-10" data-direction="sw" />
+                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-se-resize z-10" data-direction="se" />
                     </>
                   )}
                 </div>
@@ -466,7 +469,7 @@ const ComponentPreview = ({ component }: ComponentPreviewProps) => {
     case 'button':
       return (
         <div
-          className="h-full w-full flex items-center justify-center rounded"
+          className="h-full w-full flex items-center justify-center rounded pointer-events-none"
           style={{
             backgroundColor: component.props?.bgColor || '#ffffff',
             color: component.props?.fgColor || '#000000',
@@ -482,7 +485,7 @@ const ComponentPreview = ({ component }: ComponentPreviewProps) => {
     case 'label':
       return (
         <div
-          className="h-full w-full flex items-center"
+          className="h-full w-full flex items-center pointer-events-none"
           style={{
             color: component.props?.fgColor || '#000000',
             fontFamily: component.props?.font || 'Arial',
@@ -495,7 +498,7 @@ const ComponentPreview = ({ component }: ComponentPreviewProps) => {
     case 'entry':
       return (
         <div
-          className="h-full w-full flex items-center px-2"
+          className="h-full w-full flex items-center px-2 pointer-events-none"
           style={{
             backgroundColor: component.props?.bgColor || '#ffffff',
             color: component.props?.fgColor || '#000000',
@@ -511,7 +514,7 @@ const ComponentPreview = ({ component }: ComponentPreviewProps) => {
     case 'paragraph':
       return (
         <div
-          className="h-full w-full p-2 overflow-auto"
+          className="h-full w-full p-2 overflow-auto pointer-events-none"
           style={{
             backgroundColor: component.props?.bgColor || '#ffffff',
             color: component.props?.fgColor || '#000000',
@@ -528,7 +531,7 @@ const ComponentPreview = ({ component }: ComponentPreviewProps) => {
       );
     default:
       return (
-        <div className="h-full w-full flex items-center justify-center border border-dashed border-gray-300">
+        <div className="h-full w-full flex items-center justify-center border border-dashed border-gray-300 pointer-events-none">
           <span className="text-gray-500">{component.type}</span>
         </div>
       );
