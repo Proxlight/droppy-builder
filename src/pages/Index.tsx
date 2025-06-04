@@ -176,9 +176,9 @@ const Index = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header with Navigation */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+      <div className="bg-white/90 backdrop-blur-md border-b border-gray-200/50 px-4 py-2 flex items-center justify-between shadow-sm">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <img 
@@ -190,7 +190,7 @@ const Index = () => {
           </div>
           <button
             onClick={handleBackToDashboard}
-            className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+            className="text-sm text-blue-600 hover:text-blue-800 transition-colors px-3 py-1 rounded-md hover:bg-blue-50"
           >
             ← Back to Dashboard
           </button>
@@ -214,7 +214,7 @@ const Index = () => {
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
         
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 p-4 overflow-auto">
             {shouldShowWatermark ? (
               <WatermarkedCanvas>
@@ -258,7 +258,9 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="w-80 border-l bg-white flex flex-col">
+        <div className={`border-l bg-white/95 backdrop-blur-md flex flex-col transition-all duration-300 ${
+          showCodePreview ? 'w-96' : 'w-80'
+        }`}>
           <div className="flex-1 overflow-auto">
             <WindowProperties 
               visible={true}
@@ -287,10 +289,11 @@ const Index = () => {
             />
           </div>
           {showCodePreview && canExportCode && (
-            <div className="border-t">
+            <div className="border-t bg-white/90 backdrop-blur-md" style={{ height: '40%' }}>
               <CodePreview 
                 components={widgets}
                 visible={showCodePreview}
+                windowTitle={windowProperties.title}
               />
             </div>
           )}

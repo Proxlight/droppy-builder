@@ -47,18 +47,31 @@ export async function exportProject(components: any[], windowTitle?: string) {
             // Extract the base64 content after the comma
             const base64Data = src.split(',')[1];
             if (base64Data && base64Data.length > 0) {
-              // Validate base64 content length
-              const padding = base64Data.length % 4;
-              const paddedBase64 = padding ? base64Data + '='.repeat(4 - padding) : base64Data;
+              // Clean and validate base64 content
+              const cleanBase64 = base64Data.replace(/[^A-Za-z0-9+/]/g, '');
               
-              // Verify it's valid base64
-              try {
-                atob(paddedBase64);
-                assets.file(fileName, paddedBase64, { base64: true });
-                console.log(`Successfully added image: ${fileName}`);
-              } catch (base64Error) {
-                console.error(`Invalid base64 data for ${fileName}:`, base64Error);
-                // Add placeholder instead of failing
+              // Ensure proper padding
+              const padding = cleanBase64.length % 4;
+              const paddedBase64 = padding ? cleanBase64 + '='.repeat(4 - padding) : cleanBase64;
+              
+              // Verify it's valid base64 and has reasonable length
+              if (paddedBase64.length >= 4 && paddedBase64.length % 4 === 0) {
+                try {
+                  // Test if it's valid base64
+                  const testDecode = atob(paddedBase64.substring(0, Math.min(100, paddedBase64.length)));
+                  if (testDecode) {
+                    assets.file(fileName, paddedBase64, { base64: true });
+                    console.log(`Successfully added image: ${fileName}`);
+                  } else {
+                    throw new Error('Invalid base64 test decode');
+                  }
+                } catch (base64Error) {
+                  console.error(`Invalid base64 data for ${fileName}:`, base64Error);
+                  // Add placeholder instead of failing
+                  assets.file(fileName, placeholderImageData, { base64: true });
+                }
+              } else {
+                console.error(`Invalid base64 length for ${fileName}: ${paddedBase64.length}`);
                 assets.file(fileName, placeholderImageData, { base64: true });
               }
             } else {
@@ -79,14 +92,20 @@ export async function exportProject(components: any[], windowTitle?: string) {
     }
     
     // Generate the zip file
-    const content = await zip.generateAsync({ type: "blob" });
+    const content = await zip.generateAsync({ 
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: {
+        level: 6
+      }
+    });
     
     // Save the zip file
     saveAs(content, "customtkinter-project.zip");
     console.log("Project export completed successfully");
   } catch (error) {
     console.error("Error exporting project:", error);
-    throw error;
+    throw new Error(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -97,7 +116,7 @@ export async function exportProject(components: any[], windowTitle?: string) {
 function generateReadmeContent(windowTitle?: string): string {
   return `# ${windowTitle || "CustomTkinter GUI Application"}
 
-This is a modern CustomTkinter GUI application generated with GUI Builder.
+This is a modern CustomTkinter GUI application generated with Buildfy Canvas.
 
 ## Requirements
 - Python 3.7 or later

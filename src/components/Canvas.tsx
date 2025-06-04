@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from "sonner";
 import { Maximize2, Minimize2, X, Copy, Scissors, Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ const Canvas = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(windowTitle || "");
   const [clipboard, setClipboard] = useState<Component | null>(null);
+  const [draggedComponent, setDraggedComponent] = useState<Component | null>(null);
 
   useEffect(() => {
     setTitleInput(windowTitle || "");
@@ -62,7 +64,7 @@ const Canvas = ({
     e.dataTransfer.dropEffect = 'copy';
   };
 
-  const onDrop = (e: React.DragEvent) => {
+  const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     
     const type = e.dataTransfer.getData('componentType');
@@ -71,8 +73,8 @@ const Canvas = ({
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = Math.max(0, e.clientX - rect.left - 60);
+    const y = Math.max(0, e.clientY - rect.top - 20);
 
     const newComponent: Component = {
       id: `${type}-${Date.now()}`,
@@ -83,26 +85,34 @@ const Canvas = ({
     };
 
     setComponents([...components, newComponent]);
-    toast.success(`${type} component added to canvas`);
-  };
+    setSelectedComponent(newComponent);
+    setSelectedComponents([newComponent.id]);
+    toast.success(`${type} component added`, {
+      duration: 2000,
+      className: "bg-green-50 border-green-200 text-green-800",
+    });
+  }, [components, setComponents, setSelectedComponent, setSelectedComponents]);
 
-  const handleCanvasClick = (e: React.MouseEvent) => {
+  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     if (e.target === canvasRef.current) {
       setSelectedComponent(null);
       setSelectedComponents([]);
     }
-  };
+  }, [setSelectedComponent, setSelectedComponents]);
 
-  const handleComponentClick = (e: React.MouseEvent, component: Component) => {
+  const handleComponentClick = useCallback((e: React.MouseEvent, component: Component) => {
     e.stopPropagation();
     setSelectedComponent(component);
     setSelectedComponents([component.id]);
-  };
+  }, [setSelectedComponent, setSelectedComponents]);
 
-  const handleMouseDown = (e: React.MouseEvent, component: Component) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent, component: Component) => {
     e.stopPropagation();
+    e.preventDefault();
     
     const target = e.target as HTMLElement;
+    setDraggedComponent(component);
+    
     if (target.classList.contains('resize-handle')) {
       setIsResizing(true);
       setResizeDirection(target.dataset.direction || null);
@@ -110,41 +120,37 @@ const Canvas = ({
       setIsDragging(true);
     }
 
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
     setDragStart({
       x: e.clientX - component.position.x,
       y: e.clientY - component.position.y
     });
-  };
+  }, []);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!selectedComponent) return;
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!draggedComponent || (!isDragging && !isResizing)) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
     if (isDragging) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
       let newX = e.clientX - dragStart.x;
       let newY = e.clientY - dragStart.y;
       
-      newX = Math.max(0, Math.min(newX, rect.width - selectedComponent.size.width));
-      newY = Math.max(0, Math.min(newY, rect.height - selectedComponent.size.height));
+      newX = Math.max(0, Math.min(newX, windowSize.width - draggedComponent.size.width));
+      newY = Math.max(0, Math.min(newY, windowSize.height - draggedComponent.size.height));
 
-      const newComponents = components.map(comp => {
-        if (comp.id === selectedComponent.id) {
-          return {
-            ...comp,
-            position: { x: newX, y: newY }
-          };
-        }
-        return comp;
-      });
-      setComponents(newComponents);
+      const updatedComponents = components.map(comp => 
+        comp.id === draggedComponent.id 
+          ? { ...comp, position: { x: newX, y: newY } }
+          : comp
+      );
+      setComponents(updatedComponents);
     } else if (isResizing && resizeDirection) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      const newComponents = components.map(comp => {
-        if (comp.id === selectedComponent.id) {
+      const updatedComponents = components.map(comp => {
+        if (comp.id === draggedComponent.id) {
           const newSize = { ...comp.size };
           const newPosition = { ...comp.position };
 
@@ -169,25 +175,22 @@ const Canvas = ({
             }
           }
 
-          return {
-            ...comp,
-            size: newSize,
-            position: newPosition
-          };
+          return { ...comp, size: newSize, position: newPosition };
         }
         return comp;
       });
-      setComponents(newComponents);
+      setComponents(updatedComponents);
     }
-  };
+  }, [isDragging, isResizing, draggedComponent, dragStart, components, setComponents, resizeDirection, windowSize]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     setIsResizing(false);
     setResizeDirection(null);
-  };
+    setDraggedComponent(null);
+  }, []);
 
-  const handleDeleteComponent = () => {
+  const handleDeleteComponent = useCallback(() => {
     if (selectedComponent) {
       if (onDeleteComponent) {
         onDeleteComponent(selectedComponent);
@@ -195,25 +198,35 @@ const Canvas = ({
         const newComponents = components.filter(comp => comp.id !== selectedComponent.id);
         setComponents(newComponents);
         setSelectedComponent(null);
-        toast.success("Component deleted");
+        setSelectedComponents([]);
+        toast.success("Component deleted", {
+          duration: 2000,
+          className: "bg-red-50 border-red-200 text-red-800",
+        });
       }
     }
-  };
+  }, [selectedComponent, onDeleteComponent, components, setComponents, setSelectedComponent, setSelectedComponents]);
 
-  const handleCopyComponent = () => {
+  const handleCopyComponent = useCallback(() => {
     if (selectedComponent) {
       setClipboard({...selectedComponent});
-      toast.success("Component copied to clipboard");
+      toast.success("Component copied", {
+        duration: 2000,
+        className: "bg-blue-50 border-blue-200 text-blue-800",
+      });
     }
-  };
+  }, [selectedComponent]);
 
-  const handleCutComponent = () => {
+  const handleCutComponent = useCallback(() => {
     if (selectedComponent) {
       setClipboard({...selectedComponent});
       handleDeleteComponent();
-      toast.success("Component cut to clipboard");
+      toast.success("Component cut", {
+        duration: 2000,
+        className: "bg-orange-50 border-orange-200 text-orange-800",
+      });
     }
-  };
+  }, [selectedComponent, handleDeleteComponent]);
 
   const handleTitleDoubleClick = () => {
     if (!isEditingTitle) {
@@ -229,7 +242,10 @@ const Canvas = ({
   const handleTitleSave = () => {
     if (setWindowTitle && titleInput.trim()) {
       setWindowTitle(titleInput.trim());
-      toast.success("Window title updated");
+      toast.success("Window title updated", {
+        duration: 2000,
+        className: "bg-green-50 border-green-200 text-green-800",
+      });
     }
     setIsEditingTitle(false);
   };
@@ -266,7 +282,7 @@ const Canvas = ({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedComponent, components]);
+  }, [selectedComponent, handleDeleteComponent, handleCopyComponent, handleCutComponent]);
 
   const getDefaultSize = (type: string) => {
     switch (type) {
@@ -360,24 +376,24 @@ const Canvas = ({
   };
 
   return (
-    <div className="w-full h-full p-8 flex items-center justify-center">
+    <div className="w-full h-full p-8 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
       <div 
-        className="macos-window light flex flex-col"
+        className="macos-window shadow-2xl rounded-xl overflow-hidden backdrop-blur-sm border border-white/20"
         style={{ 
           width: windowSize.width, 
           height: windowSize.height,
           backgroundColor: windowBgColor || '#FFFFFF',
         }}
       >
-        <div className="window-titlebar">
+        <div className="window-titlebar bg-white/90 backdrop-blur-md border-b border-gray-200/50">
           <div className="window-buttons">
-            <div className="window-button window-close">
+            <div className="window-button window-close hover:bg-red-600 transition-colors">
               <X size={8} className="text-red-800" />
             </div>
-            <div className="window-button window-minimize">
+            <div className="window-button window-minimize hover:bg-yellow-600 transition-colors">
               <Minimize2 size={8} className="text-yellow-800" />
             </div>
-            <div className="window-button window-maximize">
+            <div className="window-button window-maximize hover:bg-green-600 transition-colors">
               <Maximize2 size={8} className="text-green-800" />
             </div>
           </div>
@@ -389,11 +405,11 @@ const Canvas = ({
                 onChange={handleTitleChange}
                 onBlur={handleTitleSave}
                 onKeyDown={handleTitleKeyDown}
-                className="w-48 mx-auto h-6 text-sm text-center bg-transparent"
+                className="w-48 mx-auto h-6 text-sm text-center bg-transparent border-none focus:ring-0"
                 autoFocus
               />
             ) : (
-              <div className="cursor-pointer">
+              <div className="cursor-pointer font-medium text-gray-700">
                 {windowTitle}
               </div>
             )}
@@ -402,7 +418,7 @@ const Canvas = ({
 
         <div
           ref={canvasRef}
-          className="flex-1 canvas-grid relative overflow-hidden"
+          className="flex-1 canvas-grid relative overflow-hidden rounded-b-xl"
           style={{ backgroundColor: windowBgColor || '#FFFFFF' }}
           onDragOver={onDragOver}
           onDrop={onDrop}
@@ -415,8 +431,10 @@ const Canvas = ({
             <ContextMenu key={component.id}>
               <ContextMenuTrigger>
                 <div
-                  className={`absolute component-preview cursor-move select-none ${
-                    selectedComponent?.id === component.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+                  className={`absolute component-preview cursor-move select-none transition-all duration-150 ${
+                    selectedComponent?.id === component.id 
+                      ? 'ring-2 ring-blue-500 ring-offset-2 shadow-lg' 
+                      : 'hover:shadow-md'
                   }`}
                   style={{
                     left: `${component.position.x}px`,
@@ -430,24 +448,24 @@ const Canvas = ({
                   <ComponentPreview component={component} />
                   {selectedComponent?.id === component.id && (
                     <>
-                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nw-resize z-10" data-direction="nw" />
-                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-ne-resize z-10" data-direction="ne" />
-                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-sw-resize z-10" data-direction="sw" />
-                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-se-resize z-10" data-direction="se" />
+                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nw-resize z-10 shadow-md hover:bg-blue-600 transition-colors" data-direction="nw" />
+                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-ne-resize z-10 shadow-md hover:bg-blue-600 transition-colors" data-direction="ne" />
+                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-sw-resize z-10 shadow-md hover:bg-blue-600 transition-colors" data-direction="sw" />
+                      <div className="resize-handle absolute w-3 h-3 bg-blue-500 rounded-full bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-se-resize z-10 shadow-md hover:bg-blue-600 transition-colors" data-direction="se" />
                     </>
                   )}
                 </div>
               </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem onClick={handleCopyComponent}>
+              <ContextMenuContent className="bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl">
+                <ContextMenuItem onClick={handleCopyComponent} className="hover:bg-blue-50">
                   <Copy className="mr-2 h-4 w-4" />
                   <span>Copy</span>
                 </ContextMenuItem>
-                <ContextMenuItem onClick={handleCutComponent}>
+                <ContextMenuItem onClick={handleCutComponent} className="hover:bg-orange-50">
                   <Scissors className="mr-2 h-4 w-4" />
                   <span>Cut</span>
                 </ContextMenuItem>
-                <ContextMenuItem onClick={handleDeleteComponent}>
+                <ContextMenuItem onClick={handleDeleteComponent} className="hover:bg-red-50 text-red-600">
                   <Trash className="mr-2 h-4 w-4" />
                   <span>Delete</span>
                 </ContextMenuItem>
