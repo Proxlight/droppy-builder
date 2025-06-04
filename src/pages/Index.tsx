@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import Canvas from '../components/Canvas';
 import { Sidebar } from '../components/Sidebar';
@@ -176,28 +177,31 @@ const Index = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header with Navigation */}
-      <div className="bg-white/90 backdrop-blur-md border-b border-gray-200/50 px-4 py-2 flex items-center justify-between shadow-sm">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {/* Modern Header */}
+      <div className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 px-6 py-3 flex items-center justify-between shadow-sm">
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-3">
             <img 
               src="/lovable-uploads/a2511ed4-b088-4fc0-81c2-1d253b757b1b.png" 
               alt="Buildfy Logo" 
-              className="w-6 h-6"
+              className="w-8 h-8"
             />
-            <span className="font-semibold text-gray-900">Buildfy Canvas</span>
+            <div>
+              <span className="font-bold text-gray-900 text-lg">Buildfy Canvas</span>
+              <div className="text-xs text-gray-500">Visual UI Builder</div>
+            </div>
           </div>
           <button
             onClick={handleBackToDashboard}
-            className="text-sm text-blue-600 hover:text-blue-800 transition-colors px-3 py-1 rounded-md hover:bg-blue-50"
+            className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50 font-medium"
           >
-            ← Back to Dashboard
+            ← Dashboard
           </button>
           <DashboardNav />
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           <Toolbar 
             components={widgets}
             onUndo={handleUndo}
@@ -210,12 +214,16 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
+        {/* Modern Sidebar */}
+        <div className="bg-white/90 backdrop-blur-sm border-r border-gray-200/50 shadow-sm">
+          <Sidebar />
+        </div>
         
+        {/* Canvas Container */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 p-4 overflow-auto">
+          <div className="flex-1 overflow-hidden">
             {shouldShowWatermark ? (
               <WatermarkedCanvas>
                 <Canvas 
@@ -234,6 +242,8 @@ const Index = () => {
                   }}
                   windowSize={{ width: windowProperties.width, height: windowProperties.height }}
                   windowBgColor={windowProperties.bgColor}
+                  windowTitle={windowProperties.title}
+                  setWindowTitle={(title) => setWindowProperties({...windowProperties, title})}
                 />
               </WatermarkedCanvas>
             ) : (
@@ -253,14 +263,16 @@ const Index = () => {
                 }}
                 windowSize={{ width: windowProperties.width, height: windowProperties.height }}
                 windowBgColor={windowProperties.bgColor}
+                windowTitle={windowProperties.title}
+                setWindowTitle={(title) => setWindowProperties({...windowProperties, title})}
               />
             )}
           </div>
         </div>
 
-        <div className={`border-l bg-white/95 backdrop-blur-md flex flex-col transition-all duration-300 ${
-          showCodePreview ? 'w-96' : 'w-80'
-        }`}>
+        {/* Modern Right Panel */}
+        <div className="bg-white/90 backdrop-blur-sm border-l border-gray-200/50 shadow-sm flex flex-col w-80">
+          {/* Properties Section */}
           <div className="flex-1 overflow-auto">
             <WindowProperties 
               visible={true}
@@ -271,25 +283,33 @@ const Index = () => {
               bgColor={windowProperties.bgColor}
               setBgColor={(bgColor) => setWindowProperties({...windowProperties, bgColor})}
             />
+            
             {selectedWidget && (
-              <PropertyPanel 
-                selectedComponent={selectedWidget}
-                onUpdate={updateWidget}
-                setInputFocused={setInputFocused}
-                inputFocused={inputFocused}
-              />
+              <div className="border-t border-gray-200/50">
+                <PropertyPanel 
+                  selectedComponent={selectedWidget}
+                  onUpdate={updateWidget}
+                  setInputFocused={setInputFocused}
+                  inputFocused={inputFocused}
+                />
+              </div>
             )}
-            <Layers 
-              visible={true}
-              components={widgets}
-              onComponentsChange={setWidgets}
-              selectedComponent={selectedWidget}
-              setSelectedComponent={setSelectedWidget}
-              onOrderChange={handleOrderChange}
-            />
+            
+            <div className="border-t border-gray-200/50">
+              <Layers 
+                visible={true}
+                components={widgets}
+                onComponentsChange={setWidgets}
+                selectedComponent={selectedWidget}
+                setSelectedComponent={setSelectedWidget}
+                onOrderChange={handleOrderChange}
+              />
+            </div>
           </div>
+          
+          {/* Code Preview Section */}
           {showCodePreview && canExportCode && (
-            <div className="border-t bg-white/90 backdrop-blur-md" style={{ height: '40%' }}>
+            <div className="border-t border-gray-200/50 bg-gray-50/80 backdrop-blur-sm h-80">
               <CodePreview 
                 components={widgets}
                 visible={showCodePreview}
