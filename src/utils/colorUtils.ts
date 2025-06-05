@@ -25,3 +25,36 @@ export function adjustColor(color: string, percent: number): string {
 
   return `#${RR}${GG}${BB}`;
 }
+
+/**
+ * Formats a color to ensure it's a valid hex color
+ * @param color - The color to format
+ * @returns A valid hex color string
+ */
+export function formatColor(color: string): string {
+  // If no color provided, return default
+  if (!color) {
+    return '#000000';
+  }
+
+  // If already a valid hex color, return as is
+  if (color.startsWith('#') && (color.length === 7 || color.length === 4)) {
+    return color;
+  }
+
+  // If it's a short hex color (e.g., #fff), expand it
+  if (color.startsWith('#') && color.length === 4) {
+    const r = color[1];
+    const g = color[2];
+    const b = color[3];
+    return `#${r}${r}${g}${g}${b}${b}`;
+  }
+
+  // If it doesn't start with #, add it
+  if (!color.startsWith('#')) {
+    return `#${color}`;
+  }
+
+  // Default fallback
+  return '#000000';
+}
