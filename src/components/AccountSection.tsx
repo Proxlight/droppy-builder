@@ -8,6 +8,9 @@ import { User, Session } from '@supabase/supabase-js';
 import { AuthForm } from './AuthForm';
 import { PricingPlans } from './PricingPlans';
 import { toast } from 'sonner';
+import type { Database } from '@/integrations/supabase/types';
+
+type SubscriptionTier = Database['public']['Enums']['subscription_tier'];
 
 export const AccountSection = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -85,17 +88,19 @@ export const AccountSection = () => {
     }
 
     try {
-      const tierMap: { [key: string]: string } = {
+      const tierMap: { [key: string]: SubscriptionTier } = {
         'Free': 'free',
         'Standard': 'standard',
         'Pro': 'pro'
       };
 
+      const selectedTier = tierMap[planName] || 'free';
+
       const { error } = await supabase
         .from('user_subscriptions')
         .upsert({
           user_id: user.id,
-          tier: tierMap[planName] || 'free'
+          tier: selectedTier
         });
 
       if (error) throw error;
