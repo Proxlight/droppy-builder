@@ -1,8 +1,15 @@
 
 import { Button } from "@/components/ui/button";
-import { Undo2, Redo2, Code, Layers as LayersIcon, Settings } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  Undo2, 
+  Redo2, 
+  Code, 
+  Layers, 
+  Settings,
+  User
+} from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface ToolbarProps {
   components: any[];
@@ -11,11 +18,11 @@ interface ToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   onToggleCodePreview: () => void;
-  onToggleLayers?: () => void;
-  onToggleWindowProperties?: () => void;
+  onToggleLayers: () => void;
+  onToggleWindowProperties: () => void;
   showCodePreview: boolean;
-  showLayers?: boolean;
-  showWindowProperties?: boolean;
+  showLayers: boolean;
+  showWindowProperties: boolean;
 }
 
 export const Toolbar = ({
@@ -28,112 +35,74 @@ export const Toolbar = ({
   onToggleLayers,
   onToggleWindowProperties,
   showCodePreview,
-  showLayers = false,
-  showWindowProperties = false
+  showLayers,
+  showWindowProperties
 }: ToolbarProps) => {
   return (
-    <div className="h-12 border-b flex items-center px-4 gap-2">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onUndo}
-              disabled={!canUndo}
-            >
-              <Undo2 size={16} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Undo (Ctrl+Z)</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onRedo}
-              disabled={!canRedo}
-            >
-              <Redo2 size={16} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Redo (Ctrl+Shift+Z)</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      <Separator orientation="vertical" className="h-6 mx-2" />
-
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={showCodePreview ? "default" : "ghost"}
-              size="sm"
-              onClick={onToggleCodePreview}
-              className="gap-2 text-xs"
-            >
-              <Code size={16} />
-              {!showCodePreview ? "Code" : "Hide Code"}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Toggle code preview</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+    <div className="border-b bg-background p-2 flex items-center gap-2">
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onUndo}
+          disabled={!canUndo}
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRedo}
+          disabled={!canRedo}
+        >
+          <Redo2 className="h-4 w-4" />
+        </Button>
+      </div>
       
-      {onToggleLayers && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showLayers ? "default" : "ghost"}
-                size="sm"
-                onClick={onToggleLayers}
-                className="gap-2 text-xs"
-              >
-                <LayersIcon size={16} />
-                {!showLayers ? "Layers" : "Hide Layers"}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Toggle layers panel (Figma style)</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+      <Separator orientation="vertical" className="h-6" />
+      
+      <div className="flex items-center gap-1">
+        <Button
+          variant={showCodePreview ? "default" : "ghost"}
+          size="sm"
+          onClick={onToggleCodePreview}
+        >
+          <Code className="h-4 w-4" />
+          Code
+        </Button>
+        <Button
+          variant={showLayers ? "default" : "ghost"}
+          size="sm"
+          onClick={onToggleLayers}
+        >
+          <Layers className="h-4 w-4" />
+          Layers
+        </Button>
+        <Button
+          variant={showWindowProperties ? "default" : "ghost"}
+          size="sm"
+          onClick={onToggleWindowProperties}
+        >
+          <Settings className="h-4 w-4" />
+          Window
+        </Button>
+      </div>
 
-      {onToggleWindowProperties && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={showWindowProperties ? "default" : "ghost"}
-                size="sm"
-                onClick={onToggleWindowProperties}
-                className="gap-2 text-xs"
-              >
-                <Settings size={16} />
-                {!showWindowProperties ? "Window" : "Hide Window"}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Toggle window properties</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      <div className="ml-auto text-xs text-muted-foreground">
-        {components.length} components
+      <Separator orientation="vertical" className="h-6" />
+      
+      <div className="flex items-center gap-1 ml-auto">
+        <span className="text-sm text-muted-foreground">
+          {components.length} component{components.length !== 1 ? 's' : ''}
+        </span>
+        
+        <Separator orientation="vertical" className="h-6 mx-2" />
+        
+        <Link to="/account">
+          <Button variant="ghost" size="sm">
+            <User className="h-4 w-4" />
+            Account
+          </Button>
+        </Link>
       </div>
     </div>
   );
