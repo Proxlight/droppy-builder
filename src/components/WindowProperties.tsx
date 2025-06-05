@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { ColorInput } from "@/components/ColorInput";
 import { toast } from 'sonner';
@@ -31,12 +30,22 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
   const [localHeight, setLocalHeight] = useState(size.height.toString());
   const [localBgColor, setLocalBgColor] = useState(bgColor);
 
+  // Update local state when props change
   useEffect(() => {
     setLocalTitle(title);
+  }, [title]);
+
+  useEffect(() => {
     setLocalWidth(size.width.toString());
+  }, [size.width]);
+
+  useEffect(() => {
     setLocalHeight(size.height.toString());
+  }, [size.height]);
+
+  useEffect(() => {
     setLocalBgColor(bgColor);
-  }, [title, size, bgColor]);
+  }, [bgColor]);
 
   const handleApply = () => {
     const width = parseInt(localWidth);
@@ -48,11 +57,32 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
     }
     
     setTitle(localTitle);
-    // Also update document title
     document.title = localTitle;
     setSize({ width, height });
     setBgColor(localBgColor);
-    toast.success("Window properties updated");
+    toast.success("Window properties updated successfully!");
+  };
+
+  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setLocalWidth(value);
+    
+    // Auto-apply for immediate feedback
+    const width = parseInt(value);
+    if (!isNaN(width) && width >= 100) {
+      setSize({ width, height: parseInt(localHeight) || size.height });
+    }
+  };
+
+  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setLocalHeight(value);
+    
+    // Auto-apply for immediate feedback
+    const height = parseInt(value);
+    if (!isNaN(height) && height >= 100) {
+      setSize({ width: parseInt(localWidth) || size.width, height });
+    }
   };
 
   if (!visible) return null;
@@ -83,7 +113,7 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
             <Input
               id="window-width"
               value={localWidth}
-              onChange={(e) => setLocalWidth(e.target.value)}
+              onChange={handleWidthChange}
               type="number"
               min="100"
               step="10"
@@ -94,7 +124,7 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
             <Input
               id="window-height"
               value={localHeight}
-              onChange={(e) => setLocalHeight(e.target.value)}
+              onChange={handleHeightChange}
               type="number"
               min="100"
               step="10"
@@ -111,6 +141,7 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
               onClick={() => {
                 setLocalWidth("640");
                 setLocalHeight("480");
+                setSize({ width: 640, height: 480 });
               }}
             >
               640×480
@@ -121,6 +152,7 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
               onClick={() => {
                 setLocalWidth("800");
                 setLocalHeight("600");
+                setSize({ width: 800, height: 600 });
               }}
             >
               800×600
@@ -131,6 +163,7 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
               onClick={() => {
                 setLocalWidth("1024");
                 setLocalHeight("768");
+                setSize({ width: 1024, height: 768 });
               }}
             >
               1024×768
@@ -141,6 +174,7 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
               onClick={() => {
                 setLocalWidth("1280");
                 setLocalHeight("720");
+                setSize({ width: 1280, height: 720 });
               }}
             >
               1280×720

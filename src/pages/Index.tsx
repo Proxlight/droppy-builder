@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import Canvas from '@/components/Canvas';
@@ -297,7 +296,9 @@ const Index = () => {
     handleComponentsChange(result, ACTION_TYPES.REORDER_COMPONENTS);
   }, [components, handleComponentsChange]);
   
+  // Update window properties change handler to properly update state
   const handleWindowPropertiesChange = useCallback((title: string, size: any, bgColor: string) => {
+    console.log('Updating window properties:', { title, size, bgColor });
     setWindowTitle(title);
     setWindowSize(size);
     setWindowBgColor(bgColor);
@@ -305,7 +306,24 @@ const Index = () => {
     // Add this to history as a window settings change
     addToHistory([...components], ACTION_TYPES.WINDOW_SETTINGS);
   }, [components, addToHistory]);
-  
+
+  // Individual handlers for better control
+  const handleTitleChange = useCallback((title: string) => {
+    console.log('Title changed to:', title);
+    setWindowTitle(title);
+    document.title = title;
+  }, []);
+
+  const handleSizeChange = useCallback((size: { width: number; height: number }) => {
+    console.log('Size changed to:', size);
+    setWindowSize(size);
+  }, []);
+
+  const handleBgColorChange = useCallback((color: string) => {
+    console.log('Background color changed to:', color);
+    setWindowBgColor(color);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (inputFocused || ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
@@ -393,11 +411,11 @@ const Index = () => {
             <WindowProperties
               visible={showWindowProperties}
               title={windowTitle}
-              setTitle={(title) => handleWindowPropertiesChange(title, windowSize, windowBgColor)}
+              setTitle={handleTitleChange}
               size={windowSize}
-              setSize={(size) => handleWindowPropertiesChange(windowTitle, size, windowBgColor)}
+              setSize={handleSizeChange}
               bgColor={windowBgColor}
-              setBgColor={(color) => handleWindowPropertiesChange(windowTitle, windowSize, color)}
+              setBgColor={handleBgColorChange}
             />
           ) : (
             <div className="flex-1 overflow-auto bg-background p-6">
@@ -412,7 +430,7 @@ const Index = () => {
                 windowTitle={windowTitle}
                 windowSize={windowSize}
                 windowBgColor={windowBgColor}
-                setWindowTitle={(title) => handleWindowPropertiesChange(title, windowSize, windowBgColor)}
+                setWindowTitle={handleTitleChange}
                 onAddComponent={handleAddComponent}
               />
             </div>
