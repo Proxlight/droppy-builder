@@ -9,11 +9,17 @@ import { generateComponentCode } from './componentCodeGenerator';
 export function generatePythonCode(components: any[], windowTitle = "My CustomTkinter Application"): string {
   // Initialize code with imports and class definition
   let code = `import customtkinter as ctk
-import tkinter as tk
 from PIL import Image, ImageTk
 import os
 import sys
 from pathlib import Path
+
+# Try to import DateEntry for date picker components
+try:
+    from tkcalendar import DateEntry
+except ImportError:
+    DateEntry = None
+    print("tkcalendar not installed. Date picker components will not work.")
 
 class App(ctk.CTk):
     def __init__(self):
@@ -23,15 +29,12 @@ class App(ctk.CTk):
         ctk.set_appearance_mode("system")  # Options: "light", "dark", "system"
         ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
 
+        # Configure window
         self.title("${windowTitle}")
         self.geometry("800x600")
         
-        # Set background color
-        self.configure(fg_color="#1A1A1A")  # Dark background to match web preview
-
-        # Configure grid layout (4x4) for better responsiveness
-        self.grid_columnconfigure((0, 1, 2, 3), weight=1)
-        self.grid_rowconfigure((0, 1, 2, 3), weight=1)
+        # Set background color to match the design
+        self.configure(fg_color="#1A1A1A")
 
         # Create assets directory if it doesn't exist
         assets_dir = Path("assets")
@@ -55,11 +58,24 @@ class App(ctk.CTk):
         // Generate code for this component and add it to the main code
         const componentCode = generateComponentCode(component, '        ');
         code += componentCode;
+        code += '\n';
       }
     });
+  } else {
+    // Add a sample widget if no components are present
+    code += `        # No components found - adding sample label
+        self.sample_label = ctk.CTkLabel(
+            self,
+            text="Hello, CustomTkinter!",
+            width=200,
+            height=50,
+            font=("Arial", 16)
+        )
+        self.sample_label.place(x=300, y=275)
+`;
   }
 
-  // Add the load_image method as a separate method in the class with improved error handling
+  // Add the load_image method as a separate method in the class
   code += `
     def load_image(self, path, size):
         """Load an image, resize it and return as CTkImage"""
@@ -76,36 +92,18 @@ class App(ctk.CTk):
                 return ctk_img
             else:
                 print(f"Image file not found: {path_str}")
-                # Use placeholder image
-                placeholder_path = "assets/placeholder.png"
-                if os.path.exists(placeholder_path):
-                    img = Image.open(placeholder_path)
-                    img = img.resize(size, Image.LANCZOS if hasattr(Image, 'LANCZOS') else Image.ANTIALIAS)
-                    ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=size)
-                    self._image_references.append(ctk_img)
-                    return ctk_img
-                else:
-                    # Create a fallback colored rectangle
-                    img = Image.new('RGB', size, color='#3B82F6')  # Blue color as placeholder
-                    ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=size)
-                    self._image_references.append(ctk_img)
-                    return ctk_img
-        except Exception as e:
-            print(f"Error loading image '{path}': {e}")
-            # Create a colored rectangle with error indication
-            try:
-                img = Image.new('RGB', size, color='#FF5555')  # Red color for error
+                # Create a fallback colored rectangle
+                img = Image.new('RGB', size, color='#3B82F6')  # Blue color as placeholder
                 ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=size)
                 self._image_references.append(ctk_img)
                 return ctk_img
-            except Exception as e2:
-                print(f"Failed to create error placeholder: {e2}")
-                # Last resort - return None and let CustomTkinter handle it
-                return None
-`;
-
-  // Add main method with error handling
-  code += `
+        except Exception as e:
+            print(f"Error loading image '{path}': {e}")
+            # Create a colored rectangle with error indication
+            img = Image.new('RGB', size, color='#FF5555')  # Red color for error
+            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=size)
+            self._image_references.append(ctk_img)
+            return ctk_img
 
 if __name__ == "__main__":
     try:
