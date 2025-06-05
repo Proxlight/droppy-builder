@@ -1,12 +1,8 @@
 
 import { Button } from "@/components/ui/button";
-import { Undo2, Redo2, Code, Layers as LayersIcon, Settings, User, CreditCard, LogOut } from "lucide-react";
+import { Undo2, Redo2, Code, Layers as LayersIcon, Settings } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from '@/contexts/AuthContext';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 
 interface ToolbarProps {
   components: any[];
@@ -35,14 +31,6 @@ export const Toolbar = ({
   showLayers = false,
   showWindowProperties = false
 }: ToolbarProps) => {
-  const navigate = useNavigate();
-  const { user, subscription, signOut } = useAuth();
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
-  };
-
   return (
     <div className="h-12 border-b flex items-center px-4 gap-2">
       <TooltipProvider>
@@ -144,46 +132,8 @@ export const Toolbar = ({
         </TooltipProvider>
       )}
 
-      <div className="ml-auto flex items-center gap-2">
-        {subscription && (
-          <Badge className="capitalize">
-            {subscription.tier} Plan
-          </Badge>
-        )}
-        
-        <Button 
-          variant="ghost"
-          size="sm"
-          className="gap-1 text-xs"
-          onClick={() => navigate('/pricing')}
-        >
-          <CreditCard size={16} />
-          Plans
-        </Button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <User size={16} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => navigate('/profile')}>
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/pricing')}>
-              Subscription
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="text-xs text-muted-foreground">
-          {components.length} components
-        </div>
+      <div className="ml-auto text-xs text-muted-foreground">
+        {components.length} components
       </div>
     </div>
   );

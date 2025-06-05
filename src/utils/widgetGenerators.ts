@@ -75,7 +75,7 @@ export function generateWidgetCode(type: string, safeId: string, props: any, ind
       return generateRadioButtonCode(safeId, props, indent);
     default:
       // Return a descriptive comment for unsupported types
-      return `${indent}# Unsupported component type: ${type}\n${indent}# Creating a label as a placeholder\n${indent}self.${safeId} = ctk.CTkLabel(self, text="Unsupported: ${type}", width=${props.width}, height=${props.height}, fg_color="#ffcccc", text_color="#000000")\n${indent}self.${safeId}.place(x=${props.x}, y=${props.y})\n`;
+      return `${indent}# Unsupported component type: ${type}\n${indent}# Creating a label as a placeholder\n${indent}self.${safeId} = ctk.CTkLabel(self, text="Unsupported: ${type}", fg_color="#ffcccc", text_color="#000000")\n${indent}self.${safeId}.place(x=${props.x}, y=${props.y}, width=${props.width}, height=${props.height})\n`;
   }
 }
 
@@ -85,7 +85,7 @@ function generateLabelCode(safeId: string, props: any, indent: string): string {
   if (props.image) {
     const imagePath = props.image;
     const imageSize = props.image_size || { width: 50, height: 50 };
-    code += `${indent}self.${safeId} = ctk.CTkLabel(self, text="${props.text || ''}", width=${props.width}, height=${props.height}, ${props.fontConfig.replace("font=", "")}, image=self.load_image("${imagePath}", (${imageSize.width}, ${imageSize.height})), compound="${props.compound || 'left'}", fg_color="${props.fg_color || 'transparent'}", text_color="${props.text_color}")\n`;
+    code += `${indent}self.${safeId} = ctk.CTkLabel(self, text="${props.text || ''}", ${props.fontConfig.replace("font=", "")}, image=self.load_image("${imagePath}", (${imageSize.width}, ${imageSize.height})), compound="${props.compound || 'left'}", fg_color="${props.fg_color || 'transparent'}", text_color="${props.text_color}")\n`;
   } else {
     code += `${indent}self.${safeId} = ctk.CTkLabel(self, text="${props.text || ''}", width=${props.width}, height=${props.height}, corner_radius=${props.cornerRadius}, fg_color="${props.fg_color || 'transparent'}", text_color="${props.text_color || '#ffffff'}", ${props.fontConfig})\n`;
   }
@@ -95,7 +95,7 @@ function generateLabelCode(safeId: string, props: any, indent: string): string {
   if (gridCode) {
     code += gridCode;
   } else {
-    code += `${indent}self.${safeId}.place(x=${props.x}, y=${props.y})\n`;
+    code += `${indent}self.${safeId}.place(x=${props.x}, y=${props.y}, width=${props.width}, height=${props.height})\n`;
   }
   
   return code;
@@ -236,7 +236,7 @@ function generateParagraphCode(safeId: string, props: any, indent: string): stri
 function generateFrameCode(safeId: string, props: any, indent: string): string {
   let code = '';
   
-  code += `${indent}self.${safeId} = ctk.CTkFrame(self, width=${props.width}, height=${props.height}, corner_radius=${props.cornerRadius}, fg_color="${props.fg_color || '#2b2b2b'}", border_width=${props.borderWidth}, border_color="${props.borderColor}")\n`;
+  code += `${indent}self.${safeId} = ctk.CTkFrame(self, width=${props.width || 200}, height=${props.height || 150}, corner_radius=${props.cornerRadius}, fg_color="${props.fg_color || '#2b2b2b'}", border_width=${props.borderWidth}, border_color="${props.borderColor}")\n`;
   
   // Use grid layout if grid properties are specified, otherwise use place
   const gridCode = generateGridCode(safeId, props, indent);
@@ -252,7 +252,7 @@ function generateFrameCode(safeId: string, props: any, indent: string): string {
 function generateCheckboxCode(safeId: string, props: any, indent: string): string {
   let code = '';
   
-  code += `${indent}self.${safeId} = ctk.CTkCheckBox(self, text="${props.text || 'Checkbox'}", width=${props.width}, height=${props.height}, fg_color="${props.fg_color || '#3b82f6'}", hover_color="${adjustColorBrightness(props.fg_color || '#3b82f6', -20)}", text_color="${props.text_color || '#ffffff'}", border_color="${props.borderColor}", ${props.fontConfig})\n`;
+  code += `${indent}self.${safeId} = ctk.CTkCheckBox(self, text="${props.text || 'Checkbox'}", fg_color="${props.fg_color || '#3b82f6'}", hover_color="${adjustColorBrightness(props.fg_color || '#3b82f6', -20)}", text_color="${props.text_color || '#ffffff'}", border_color="${props.borderColor}", ${props.fontConfig})\n`;
   
   // Use grid layout if grid properties are specified, otherwise use place
   const gridCode = generateGridCode(safeId, props, indent);
@@ -281,14 +281,14 @@ function generateImageCode(safeId: string, props: any, indent: string): string {
   
   code += `${indent}# Image setup for ${safeId}\n`;
   code += `${indent}self.img_${safeId} = self.load_image("${imagePath}", (${imageWidth}, ${imageHeight}))\n`;
-  code += `${indent}self.image_label_${safeId} = ctk.CTkLabel(self, image=self.img_${safeId}, text="", width=${imageWidth}, height=${imageHeight}, fg_color="${props.bg_color || 'transparent'}")\n`;
+  code += `${indent}self.image_label_${safeId} = ctk.CTkLabel(self, image=self.img_${safeId}, text="", fg_color="${props.bg_color || 'transparent'}")\n`;
   
   // Use grid layout if grid properties are specified, otherwise use place
   if (props.useGrid && props.row !== null && props.column !== null) {
     const sticky = props.sticky ? `, sticky="${props.sticky}"` : '';
     code += `${indent}self.image_label_${safeId}.grid(row=${props.row}, column=${props.column}, rowspan=${props.rowspan}, columnspan=${props.columnspan}, padx=${props.padx}, pady=${props.pady}${sticky})\n`;
   } else {
-    code += `${indent}self.image_label_${safeId}.place(x=${props.x}, y=${props.y})\n`;
+    code += `${indent}self.image_label_${safeId}.place(x=${props.x}, y=${props.y}, width=${imageWidth}, height=${imageHeight})\n`;
   }
   
   return code;

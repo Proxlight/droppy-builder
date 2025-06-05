@@ -48,35 +48,11 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
     }
     
     setTitle(localTitle);
+    // Also update document title
     document.title = localTitle;
     setSize({ width, height });
     setBgColor(localBgColor);
     toast.success("Window properties updated");
-  };
-
-  // Apply changes immediately when local values change
-  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newWidth = e.target.value;
-    setLocalWidth(newWidth);
-    const width = parseInt(newWidth);
-    if (!isNaN(width) && width >= 100) {
-      setSize({ width, height: size.height });
-    }
-  };
-
-  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newHeight = e.target.value;
-    setLocalHeight(newHeight);
-    const height = parseInt(newHeight);
-    if (!isNaN(height) && height >= 100) {
-      setSize({ width: size.width, height });
-    }
-  };
-
-  const handlePresetClick = (width: number, height: number) => {
-    setLocalWidth(width.toString());
-    setLocalHeight(height.toString());
-    setSize({ width, height });
   };
 
   if (!visible) return null;
@@ -107,7 +83,7 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
             <Input
               id="window-width"
               value={localWidth}
-              onChange={handleWidthChange}
+              onChange={(e) => setLocalWidth(e.target.value)}
               type="number"
               min="100"
               step="10"
@@ -118,7 +94,7 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
             <Input
               id="window-height"
               value={localHeight}
-              onChange={handleHeightChange}
+              onChange={(e) => setLocalHeight(e.target.value)}
               type="number"
               min="100"
               step="10"
@@ -132,28 +108,40 @@ export const WindowProperties: React.FC<WindowPropertiesProps> = ({
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => handlePresetClick(640, 480)}
+              onClick={() => {
+                setLocalWidth("640");
+                setLocalHeight("480");
+              }}
             >
               640×480
             </Button>
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => handlePresetClick(800, 600)}
+              onClick={() => {
+                setLocalWidth("800");
+                setLocalHeight("600");
+              }}
             >
               800×600
             </Button>
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => handlePresetClick(1024, 768)}
+              onClick={() => {
+                setLocalWidth("1024");
+                setLocalHeight("768");
+              }}
             >
               1024×768
             </Button>
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => handlePresetClick(1280, 720)}
+              onClick={() => {
+                setLocalWidth("1280");
+                setLocalHeight("720");
+              }}
             >
               1280×720
             </Button>

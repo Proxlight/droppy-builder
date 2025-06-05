@@ -42,49 +42,20 @@ export async function exportProject(components: any[], windowTitle?: string) {
       for (const [src, fileName] of Object.entries(componentImages)) {
         try {
           // Make sure we're working with a valid data URL
-          if (src && typeof src === 'string' && src.startsWith('data:')) {
+          if (src && src.includes('base64')) {
             console.log(`Adding image: ${fileName}`);
             // Extract the base64 content after the comma
             const base64Data = src.split(',')[1];
-            if (base64Data && base64Data.length > 0) {
-              // Clean and validate base64 content
-              const cleanBase64 = base64Data.replace(/[^A-Za-z0-9+/]/g, '');
-              
-              // Ensure proper padding
-              const padding = cleanBase64.length % 4;
-              const paddedBase64 = padding ? cleanBase64 + '='.repeat(4 - padding) : cleanBase64;
-              
-              // Verify it's valid base64 and has reasonable length
-              if (paddedBase64.length >= 4 && paddedBase64.length % 4 === 0) {
-                try {
-                  // Test if it's valid base64
-                  const testDecode = atob(paddedBase64.substring(0, Math.min(100, paddedBase64.length)));
-                  if (testDecode) {
-                    assets.file(fileName, paddedBase64, { base64: true });
-                    console.log(`Successfully added image: ${fileName}`);
-                  } else {
-                    throw new Error('Invalid base64 test decode');
-                  }
-                } catch (base64Error) {
-                  console.error(`Invalid base64 data for ${fileName}:`, base64Error);
-                  // Add placeholder instead of failing
-                  assets.file(fileName, placeholderImageData, { base64: true });
-                }
-              } else {
-                console.error(`Invalid base64 length for ${fileName}: ${paddedBase64.length}`);
-                assets.file(fileName, placeholderImageData, { base64: true });
-              }
+            if (base64Data) {
+              assets.file(fileName, base64Data, { base64: true });
             } else {
-              console.error(`Empty base64 data for ${fileName}`);
-              assets.file(fileName, placeholderImageData, { base64: true });
+              console.error(`Invalid base64 data for ${fileName}`);
             }
           } else {
             console.log(`Skipping non-data URL: ${src}`);
           }
         } catch (err) {
           console.error(`Error processing image ${fileName}:`, err);
-          // Add placeholder image instead of failing
-          assets.file(fileName, placeholderImageData, { base64: true });
         }
       }
     } else {
@@ -92,20 +63,14 @@ export async function exportProject(components: any[], windowTitle?: string) {
     }
     
     // Generate the zip file
-    const content = await zip.generateAsync({ 
-      type: "blob",
-      compression: "DEFLATE",
-      compressionOptions: {
-        level: 6
-      }
-    });
+    const content = await zip.generateAsync({ type: "blob" });
     
     // Save the zip file
     saveAs(content, "customtkinter-project.zip");
     console.log("Project export completed successfully");
   } catch (error) {
     console.error("Error exporting project:", error);
-    throw new Error(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw error;
   }
 }
 
@@ -116,7 +81,7 @@ export async function exportProject(components: any[], windowTitle?: string) {
 function generateReadmeContent(windowTitle?: string): string {
   return `# ${windowTitle || "CustomTkinter GUI Application"}
 
-This is a modern CustomTkinter GUI application generated with Buildfy Canvas.
+This is a modern CustomTkinter GUI application generated with GUI Builder.
 
 ## Requirements
 - Python 3.7 or later
@@ -176,5 +141,5 @@ If you still encounter issues, please check the console output for detailed erro
  */
 function generatePlaceholderImage(): string {
   // A minimal base64-encoded PNG image (a blue square)
-  return 'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsIAAA7CARUoSoAAAAF3SURBVHhe7dAxAQAwDASh+je9+WsYD0LACQScgIATEHACAk5AwAkIOAEBJyDgBASc+7N3lY0dwGF4AkvQOLO8AY0rhcc4zPLs2TU77d21+xPIA8QD+fkB4oFkyzHngXggOSACyRLZcsx5IB5IDogvWVkiW445D8QDyQERSJbIlmPOA/FAckAEkiWy5ZjzQDyQHBCBZIlsOeY8EA8kB0QgWSJbjjkPxAPJARFIlsiWY84D8UByQASSJbLlmPNAPJAcEIFkiWw55jwQDyQHRCBZIluOOQ/EA8kBEUiWyJZjzgPxQHJABJIlsuWY80A8kBwQgWSJbDnmPBAPJAdEIFkiW445D8QDyQERSJbIlsOeY8EA8kB0QgWSJbDnmPBAPJAcEIFkiWy5ZjzQDyQHRCBZIlsOeY8EA8kBEUiWyJZDnmPBAPJAcEIFkiWy5ZjzQDyQHRCBZIlsOeY8EA8kBEUiWyJZjzgPxQArtpXaW3e+UawAAAABJRU5ErkJggg==';
+  return 'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsIAAA7CARUoSoAAAAF3SURBVHhe7dAxAQAwDASh+je9+WsYD0LACQScgIATEHACAk5AwAkIOAEBJyDgBASc+7N3lY0dwGF4AkvQOLO8AY0rhcc4zPLs2TU77d21+xPIA8QD+fkB4oFkyzHngXggOSACyRLZcsx5IB5IDogvWVkiW445D8QDyQERSJbIlmPOA/FAckAEkiWy5ZjzQDyQHBCBZIlsOeY8EA8kB0QgWSJbjjkPxAPJARFIlsiWY84D8UByQASSJbLlmPNAPJAcEIFkiWw55jwQDyQHRCBZIluOOQ/EA8kBEUiWyJZjzgPxQHJABJIlsuWY80A8kBwQgWSJbDnmPBAPJAdEIFkiW445D8QDyQERSJbIlsOeY8EA8kB0QgWSJbDnmPBAPJAcEIFkiWy5ZjzQDyQHRCBZIlsOeY8EA8kB0QgWSJbDnmPBAPJAcEIFkiWy5ZjzQDyQHRCBZIlsOeY8EA8kBEUiWyJZjzgPxQArtpXaW3e+UawAAAABJRU5ErkJggg==';
 }

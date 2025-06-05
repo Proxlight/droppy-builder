@@ -1,324 +1,433 @@
 
-import { useState, useEffect } from 'react';
-import Canvas from '../components/Canvas';
-import { Sidebar } from '../components/Sidebar';
-import { PropertyPanel } from '../components/PropertyPanel';
-import { Toolbar } from '../components/Toolbar';
-import { WindowProperties } from '../components/WindowProperties';
-import { CodePreview } from '../components/CodePreview';
-import { Layers } from '../components/Layers';
-import WatermarkedCanvas from '../components/WatermarkedCanvas';
-import { DashboardNav } from '@/components/Navigation/DashboardNav';
-import { useAuth } from '@/contexts/AuthContext';
-import { hasFeature, FEATURES } from '@/utils/subscriptionUtils';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useCallback, useEffect } from 'react';
+import { Sidebar } from '@/components/Sidebar';
+import Canvas from '@/components/Canvas';
+import { PropertyPanel } from '@/components/PropertyPanel';
+import { CodePreview } from '@/components/CodePreview';
+import { Toolbar } from '@/components/Toolbar';
+import { Layers } from '@/components/Layers';
+import { WindowProperties } from '@/components/WindowProperties';
+import { toast } from 'sonner';
 
-interface Widget {
-  id: string;
-  type: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  properties: any;
-}
-
-interface Component {
-  id: string;
-  type: string;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-  props: any;
-}
-
-interface WindowPropertiesType {
-  width: number;
-  height: number;
-  title: string;
-  bgColor: string;
-}
+// Define what constitutes a major state change for undo/redo
+const ACTION_TYPES = {
+  ADD_COMPONENT: 'add_component',
+  DELETE_COMPONENT: 'delete_component',
+  UPDATE_COMPONENT: 'update_component',
+  REORDER_COMPONENTS: 'reorder_components',
+  WINDOW_SETTINGS: 'window_settings',
+  MULTI_DELETE: 'multi_delete',
+};
 
 const Index = () => {
-  const [widgets, setWidgets] = useState<Widget[]>([]);
-  const [selectedWidget, setSelectedWidget] = useState<Widget | null>(null);
-  const [windowProperties, setWindowProperties] = useState<WindowPropertiesType>({
-    width: 800,
-    height: 600,
-    title: 'My App',
-    bgColor: '#FFFFFF'
-  });
-  const [showCodePreview, setShowCodePreview] = useState(false);
+  const [selectedComponent, setSelectedComponent] = useState(null);
+  const [components, setComponents] = useState([]);
+  const [history, setHistory] = useState<any[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [actionHistory, setActionHistory] = useState<string[]>(['initial']);
   const [inputFocused, setInputFocused] = useState(false);
-  const [undoStack, setUndoStack] = useState<Widget[][]>([]);
-  const [redoStack, setRedoStack] = useState<Widget[][]>([]);
+  const [selectedComponents, setSelectedComponents] = useState<string[]>([]);
+  const [showCodePreview, setShowCodePreview] = useState(false);
+  const [showLayers, setShowLayers] = useState(false);
+  const [showWindowProperties, setShowWindowProperties] = useState(false);
+  const [isUndoRedoAction, setIsUndoRedoAction] = useState(false);
+  const [lastActionTimestamp, setLastActionTimestamp] = useState(0);
   
-  const { subscription } = useAuth();
-  const navigate = useNavigate();
-  const { projectId } = useParams();
+  const [windowTitle, setWindowTitle] = useState("My CustomTkinter Application");
+  const [windowSize, setWindowSize] = useState({ width: 800, height: 600 });
+  const [windowBgColor, setWindowBgColor] = useState("#1A1A1A"); // Set dark background as default
   
-  const canExportCode = hasFeature(subscription, FEATURES.EXPORT_CODE);
-  const shouldShowWatermark = !hasFeature(subscription, FEATURES.REMOVE_WATERMARK);
-
-  // Convert Widget to Component
-  const widgetToComponent = (widget: Widget): Component => ({
-    id: widget.id,
-    type: widget.type,
-    position: { x: widget.x, y: widget.y },
-    size: { width: widget.width, height: widget.height },
-    props: widget.properties
-  });
-
-  // Convert Component to Widget
-  const componentToWidget = (component: Component): Widget => ({
-    id: component.id,
-    type: component.type,
-    x: component.position.x,
-    y: component.position.y,
-    width: component.size.width,
-    height: component.size.height,
-    properties: component.props
-  });
-
-  useEffect(() => {
-    if (projectId) {
-      // Load specific project
-      const savedProject = localStorage.getItem(`project_${projectId}`);
-      if (savedProject) {
-        const projectData = JSON.parse(savedProject);
-        setWidgets(projectData.widgets || []);
-        setWindowProperties(projectData.windowProperties || { width: 800, height: 600, title: 'My App', bgColor: '#FFFFFF' });
-      } else {
-        // Start with blank canvas for new project
-        setWidgets([]);
-        setWindowProperties({ width: 800, height: 600, title: 'New Project', bgColor: '#FFFFFF' });
-      }
-    } else {
-      // No project ID - start with blank canvas
-      setWidgets([]);
-      setWindowProperties({ width: 800, height: 600, title: 'New Project', bgColor: '#FFFFFF' });
+  // Safe setter for selected component that includes validation
+  const safeSetSelectedComponent = useCallback((component: any) => {
+    // If component is null, just clear the selection
+    if (!component) {
+      setSelectedComponent(null);
+      return;
     }
-  }, [projectId]);
-
-  // Auto-save project changes
+    
+    // Validate the component has an id
+    if (!component.id) {
+      console.warn("Attempted to select an invalid component without id:", component);
+      return;
+    }
+    
+    // Verify the component exists in our components array
+    const componentExists = components.some(c => c.id === component.id);
+    if (!componentExists) {
+      console.warn("Attempted to select a non-existent component:", component.id);
+      return;
+    }
+    
+    // Find the component in the array to ensure we have the current version
+    const currentComponent = components.find(c => c.id === component.id);
+    setSelectedComponent(currentComponent);
+  }, [components]);
+  
   useEffect(() => {
-    if (projectId) {
-      const projectData = {
-        id: projectId,
-        name: windowProperties.title,
-        widgets,
-        windowProperties,
-        lastModified: new Date().toISOString()
-      };
-      localStorage.setItem(`project_${projectId}`, JSON.stringify(projectData));
+    try {
+      const savedComponents = localStorage.getItem('guiBuilderComponents');
+      if (savedComponents) {
+        const parsedComponents = JSON.parse(savedComponents);
+        setComponents(parsedComponents);
+        addToHistory(parsedComponents, ACTION_TYPES.ADD_COMPONENT);
+      }
       
-      // Update projects list
-      const existingProjects = JSON.parse(localStorage.getItem('projects') || '[]');
-      const projectIndex = existingProjects.findIndex((p: any) => p.id === projectId);
-      if (projectIndex >= 0) {
-        existingProjects[projectIndex] = {
-          id: projectId,
-          name: windowProperties.title,
-          lastModified: new Date().toISOString()
-        };
-      } else {
-        existingProjects.push({
-          id: projectId,
-          name: windowProperties.title,
-          lastModified: new Date().toISOString()
-        });
+      const savedWindowTitle = localStorage.getItem('guiBuilderWindowTitle');
+      const savedWindowSize = localStorage.getItem('guiBuilderWindowSize');
+      const savedWindowBgColor = localStorage.getItem('guiBuilderWindowBgColor');
+      
+      if (savedWindowTitle) setWindowTitle(savedWindowTitle);
+      if (savedWindowSize) setWindowSize(JSON.parse(savedWindowSize));
+      if (savedWindowBgColor) setWindowBgColor(savedWindowBgColor);
+    } catch (error) {
+      console.error('Failed to load saved components:', error);
+    }
+  }, []);
+  
+  // Update document title when window title changes
+  useEffect(() => {
+    document.title = windowTitle;
+    try {
+      localStorage.setItem('guiBuilderWindowTitle', windowTitle);
+      localStorage.setItem('guiBuilderWindowSize', JSON.stringify(windowSize));
+      localStorage.setItem('guiBuilderWindowBgColor', windowBgColor);
+    } catch (error) {
+      console.error('Failed to save window properties:', error);
+    }
+  }, [windowTitle, windowSize, windowBgColor]);
+  
+  useEffect(() => {
+    try {
+      localStorage.setItem('guiBuilderComponents', JSON.stringify(components));
+    } catch (error) {
+      console.error('Failed to save components:', error);
+    }
+  }, [components]);
+  
+  // Optimized addToHistory that only adds significant changes
+  const addToHistory = useCallback((newComponents: any[], actionType: string) => {
+    const now = Date.now();
+    
+    // Don't record history for continuous small movements within 500ms
+    if (
+      actionType === ACTION_TYPES.UPDATE_COMPONENT && 
+      now - lastActionTimestamp < 500 && 
+      !isUndoRedoAction
+    ) {
+      return;
+    }
+    
+    // Only add to history if it's a significant action or enough time has passed
+    if (isUndoRedoAction || actionType !== ACTION_TYPES.UPDATE_COMPONENT || now - lastActionTimestamp > 500) {
+      setLastActionTimestamp(now);
+      
+      // Make sure we're only storing different states
+      if (JSON.stringify(newComponents) !== JSON.stringify(history[historyIndex])) {
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push([...newComponents]);
+        
+        const newActionHistory = actionHistory.slice(0, historyIndex + 1);
+        newActionHistory.push(actionType);
+        
+        setHistory(newHistory);
+        setActionHistory(newActionHistory);
+        setHistoryIndex(newHistory.length - 1);
       }
-      localStorage.setItem('projects', JSON.stringify(existingProjects));
     }
-  }, [widgets, windowProperties, projectId]);
+  }, [history, historyIndex, actionHistory, lastActionTimestamp, isUndoRedoAction]);
 
-  const updateWidget = (updatedWidget: Widget) => {
-    setWidgets(widgets.map(widget => widget.id === updatedWidget.id ? updatedWidget : widget));
-  };
+  const handleComponentsChange = useCallback((newComponents: any[], actionType = ACTION_TYPES.UPDATE_COMPONENT) => {
+    setComponents([...newComponents]);
+    addToHistory([...newComponents], actionType);
+  }, [addToHistory]);
 
-  const deleteWidget = (widgetId: string) => {
-    setWidgets(widgets.filter(widget => widget.id !== widgetId));
-    setSelectedWidget(null);
-  };
-
-  const handleBackToDashboard = () => {
-    navigate('/');
-  };
-
-  const handleUndo = () => {
-    if (undoStack.length > 0) {
-      const previousState = undoStack[undoStack.length - 1];
-      setRedoStack([...redoStack, widgets]);
-      setWidgets(previousState);
-      setUndoStack(undoStack.slice(0, -1));
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setIsUndoRedoAction(true);
+      setHistoryIndex(newIndex);
+      setComponents([...history[newIndex]]);
+      
+      // Reset selected component to prevent issues
+      setSelectedComponent(null);
+      setSelectedComponents([]);
+      
+      toast.info(`Undo: ${actionHistory[newIndex+1].replace('_', ' ')}`);
+      
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        setIsUndoRedoAction(false);
+      }, 100);
     }
-  };
+  }, [history, historyIndex, actionHistory]);
 
-  const handleRedo = () => {
-    if (redoStack.length > 0) {
-      const nextState = redoStack[redoStack.length - 1];
-      setUndoStack([...undoStack, widgets]);
-      setWidgets(nextState);
-      setRedoStack(redoStack.slice(0, -1));
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setIsUndoRedoAction(true);
+      setHistoryIndex(newIndex);
+      setComponents([...history[newIndex]]);
+      
+      // Reset selected component to prevent issues
+      setSelectedComponent(null);
+      setSelectedComponents([]);
+      
+      toast.info(`Redo: ${actionHistory[newIndex].replace('_', ' ')}`);
+      
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        setIsUndoRedoAction(false);
+      }, 100);
     }
-  };
+  }, [history, historyIndex, actionHistory]);
 
-  const handleComponentsChange = (newComponents: Component[]) => {
-    const newWidgets = newComponents.map(componentToWidget);
-    setUndoStack([...undoStack, widgets]);
-    setRedoStack([]);
-    setWidgets(newWidgets);
-  };
+  // Add a component to the canvas
+  const handleAddComponent = useCallback((component: any) => {
+    const newComponents = [...components, component];
+    handleComponentsChange(newComponents, ACTION_TYPES.ADD_COMPONENT);
+    return component;
+  }, [components, handleComponentsChange]);
 
-  const handleOrderChange = (fromIndex: number, toIndex: number) => {
-    const newWidgets = [...widgets];
-    const [movedWidget] = newWidgets.splice(fromIndex, 1);
-    newWidgets.splice(toIndex, 0, movedWidget);
-    setWidgets(newWidgets);
-  };
-
-  return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50">
-      {/* Modern Header */}
-      <div className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 px-6 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-3">
-            <img 
-              src="/lovable-uploads/a2511ed4-b088-4fc0-81c2-1d253b757b1b.png" 
-              alt="Buildfy Logo" 
-              className="w-8 h-8"
-            />
-            <div>
-              <span className="font-bold text-gray-900 text-lg">Buildfy Canvas</span>
-              <div className="text-xs text-gray-500">Visual UI Builder</div>
-            </div>
-          </div>
-          <button
-            onClick={handleBackToDashboard}
-            className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors px-4 py-2 rounded-lg hover:bg-blue-50 font-medium"
-          >
-            ← Dashboard
-          </button>
-          <DashboardNav />
-        </div>
+  const handleComponentUpdate = useCallback((updatedComponent: any) => {
+    try {
+      // Enhanced validation before update
+      if (!updatedComponent) {
+        console.warn("Attempted to update an undefined component");
+        return;
+      }
+      
+      if (!updatedComponent.id) {
+        console.warn("Attempted to update a component without ID", updatedComponent);
+        return;
+      }
+      
+      // Check if component exists in our array
+      const componentExists = components.some(c => c.id === updatedComponent.id);
+      if (!componentExists) {
+        console.warn("Attempted to update a non-existent component:", updatedComponent.id);
+        return;
+      }
+      
+      // Create new components array with the updated component
+      const newComponents = components.map(c => 
+        c.id === updatedComponent.id ? { ...updatedComponent } : c
+      );
+      
+      handleComponentsChange(newComponents, ACTION_TYPES.UPDATE_COMPONENT);
+    } catch (error) {
+      console.error("Error updating component:", error);
+      toast.error("Failed to update component");
+    }
+  }, [components, handleComponentsChange]);
+  
+  const handleComponentSelect = useCallback((component: any) => {
+    try {
+      // Use our safe setter function
+      safeSetSelectedComponent(component);
+    } catch (error) {
+      console.error("Error selecting component:", error);
+      setSelectedComponent(null);
+    }
+  }, [safeSetSelectedComponent]);
+  
+  const handleDeleteComponent = useCallback((component: any) => {
+    try {
+      if (selectedComponents.length > 1) {
+        // Validate all components exist before deletion
+        const validComponentIds = selectedComponents.filter(id => 
+          components.some(c => c.id === id)
+        );
         
-        <div className="flex items-center space-x-3">
-          <Toolbar 
-            components={widgets}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            canUndo={undoStack.length > 0}
-            canRedo={redoStack.length > 0}
-            onToggleCodePreview={() => setShowCodePreview(!showCodePreview)}
-            showCodePreview={showCodePreview}
-          />
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Modern Sidebar */}
-        <div className="bg-white/90 backdrop-blur-sm border-r border-gray-200/50 shadow-sm">
-          <Sidebar />
-        </div>
+        if (validComponentIds.length !== selectedComponents.length) {
+          console.warn("Some selected components don't exist", 
+            selectedComponents.filter(id => !validComponentIds.includes(id))
+          );
+        }
         
-        {/* Canvas Container */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 overflow-hidden">
-            {shouldShowWatermark ? (
-              <WatermarkedCanvas>
-                <Canvas 
-                  components={widgets.map(widgetToComponent)}
-                  setComponents={handleComponentsChange}
-                  selectedComponent={selectedWidget ? widgetToComponent(selectedWidget) : null}
-                  setSelectedComponent={(component) => setSelectedWidget(component ? componentToWidget(component) : null)}
-                  selectedComponents={selectedWidget ? [selectedWidget.id] : []}
-                  setSelectedComponents={(ids) => {
-                    if (ids.length > 0) {
-                      const widget = widgets.find(w => w.id === ids[0]);
-                      setSelectedWidget(widget || null);
-                    } else {
-                      setSelectedWidget(null);
-                    }
-                  }}
-                  windowSize={{ width: windowProperties.width, height: windowProperties.height }}
-                  windowBgColor={windowProperties.bgColor}
-                  windowTitle={windowProperties.title}
-                  setWindowTitle={(title) => setWindowProperties({...windowProperties, title})}
-                />
-              </WatermarkedCanvas>
-            ) : (
-              <Canvas 
-                components={widgets.map(widgetToComponent)}
-                setComponents={handleComponentsChange}
-                selectedComponent={selectedWidget ? widgetToComponent(selectedWidget) : null}
-                setSelectedComponent={(component) => setSelectedWidget(component ? componentToWidget(component) : null)}
-                selectedComponents={selectedWidget ? [selectedWidget.id] : []}
-                setSelectedComponents={(ids) => {
-                  if (ids.length > 0) {
-                    const widget = widgets.find(w => w.id === ids[0]);
-                    setSelectedWidget(widget || null);
-                  } else {
-                    setSelectedWidget(null);
-                  }
-                }}
-                windowSize={{ width: windowProperties.width, height: windowProperties.height }}
-                windowBgColor={windowProperties.bgColor}
-                windowTitle={windowProperties.title}
-                setWindowTitle={(title) => setWindowProperties({...windowProperties, title})}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Modern Right Panel */}
-        <div className="bg-white/90 backdrop-blur-sm border-l border-gray-200/50 shadow-sm flex flex-col w-80">
-          {/* Properties Section */}
-          <div className="flex-1 overflow-auto">
-            <WindowProperties 
-              visible={true}
-              title={windowProperties.title}
-              setTitle={(title) => setWindowProperties({...windowProperties, title})}
-              size={{ width: windowProperties.width, height: windowProperties.height }}
-              setSize={(size) => setWindowProperties({...windowProperties, ...size})}
-              bgColor={windowProperties.bgColor}
-              setBgColor={(bgColor) => setWindowProperties({...windowProperties, bgColor})}
-            />
-            
-            {selectedWidget && (
-              <div className="border-t border-gray-200/50">
-                <PropertyPanel 
-                  selectedComponent={selectedWidget}
-                  onUpdate={updateWidget}
-                  setInputFocused={setInputFocused}
-                  inputFocused={inputFocused}
-                />
-              </div>
-            )}
-            
-            <div className="border-t border-gray-200/50">
-              <Layers 
-                visible={true}
-                components={widgets}
-                onComponentsChange={setWidgets}
-                selectedComponent={selectedWidget}
-                setSelectedComponent={setSelectedWidget}
-                onOrderChange={handleOrderChange}
-              />
-            </div>
-          </div>
+        const newComponents = components.filter(c => !validComponentIds.includes(c.id));
+        handleComponentsChange(newComponents, ACTION_TYPES.MULTI_DELETE);
+        setSelectedComponents([]);
+        setSelectedComponent(null);
+        toast.info("Multiple components deleted");
+      } else if (component) {
+        // Validate component exists
+        if (!components.some(c => c.id === component.id)) {
+          console.warn("Attempted to delete a non-existent component:", component.id);
+          setSelectedComponent(null);
+          return;
+        }
+        
+        const newComponents = components.filter(c => c.id !== component.id);
+        handleComponentsChange(newComponents, ACTION_TYPES.DELETE_COMPONENT);
+        setSelectedComponent(null);
+        toast.info("Component deleted");
+      }
+    } catch (error) {
+      console.error("Error deleting component:", error);
+      toast.error("Failed to delete component");
+      // Reset selections to be safe
+      setSelectedComponent(null);
+      setSelectedComponents([]);
+    }
+  }, [components, handleComponentsChange, selectedComponents]);
+  
+  const toggleCodePreview = useCallback(() => {
+    setShowCodePreview(prev => !prev);
+    setShowLayers(false);
+    setShowWindowProperties(false);
+  }, []);
+  
+  const toggleLayers = useCallback(() => {
+    setShowLayers(prev => !prev);
+    setShowCodePreview(false);
+    setShowWindowProperties(false);
+  }, []);
+  
+  const toggleWindowProperties = useCallback(() => {
+    setShowWindowProperties(prev => !prev);
+    setShowLayers(false);
+    setShowCodePreview(false);
+  }, []);
+  
+  const handleComponentLayerOrderChange = useCallback((fromIndex: number, toIndex: number) => {
+    const result = Array.from(components);
+    const [removed] = result.splice(fromIndex, 1);
+    result.splice(toIndex, 0, removed);
+    
+    handleComponentsChange(result, ACTION_TYPES.REORDER_COMPONENTS);
+  }, [components, handleComponentsChange]);
+  
+  const handleWindowPropertiesChange = useCallback((title: string, size: any, bgColor: string) => {
+    setWindowTitle(title);
+    setWindowSize(size);
+    setWindowBgColor(bgColor);
+    
+    // Add this to history as a window settings change
+    addToHistory([...components], ACTION_TYPES.WINDOW_SETTINGS);
+  }, [components, addToHistory]);
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (inputFocused || ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+      
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        
+        if (selectedComponents.length > 1) {
+          // Validate all components exist
+          const validComponentIds = selectedComponents.filter(id => 
+            components.some(c => c.id === id)
+          );
           
-          {/* Code Preview Section */}
-          {showCodePreview && canExportCode && (
-            <div className="border-t border-gray-200/50 bg-gray-50/80 backdrop-blur-sm h-80">
-              <CodePreview 
-                components={widgets}
-                visible={showCodePreview}
-                windowTitle={windowProperties.title}
+          const newComponents = components.filter(c => !validComponentIds.includes(c.id));
+          handleComponentsChange(newComponents, ACTION_TYPES.MULTI_DELETE);
+          setSelectedComponents([]);
+          setSelectedComponent(null);
+          toast.info("Multiple components deleted");
+        } else if (selectedComponent) {
+          // Validate component exists
+          if (!components.some(c => c.id === selectedComponent.id)) {
+            console.warn("Attempted to delete a non-existent component", selectedComponent);
+            setSelectedComponent(null);
+            return;
+          }
+          
+          handleDeleteComponent(selectedComponent);
+          setSelectedComponent(null);
+        }
+      }
+      
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        if (!e.shiftKey) {
+          e.preventDefault();
+          handleUndo();
+        } else {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedComponent, selectedComponents, handleDeleteComponent, handleUndo, handleRedo, inputFocused, components]);
+  
+  return (
+    <div className="h-screen flex overflow-hidden bg-white">
+      <Sidebar />
+      
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <Toolbar
+          components={components}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={historyIndex > 0}
+          canRedo={historyIndex < history.length - 1}
+          onToggleCodePreview={toggleCodePreview}
+          onToggleLayers={toggleLayers}
+          onToggleWindowProperties={toggleWindowProperties}
+          showCodePreview={showCodePreview}
+          showLayers={showLayers}
+          showWindowProperties={showWindowProperties}
+        />
+        
+        <div className="flex-1 flex overflow-hidden">
+          {showCodePreview ? (
+            <CodePreview 
+              components={components} 
+              visible={showCodePreview}
+              windowTitle={windowTitle}
+            />
+          ) : showLayers ? (
+            <Layers 
+              components={components}
+              onComponentsChange={handleComponentsChange}
+              selectedComponent={selectedComponent}
+              setSelectedComponent={handleComponentSelect}
+              onOrderChange={handleComponentLayerOrderChange}
+              visible={showLayers}
+            />
+          ) : showWindowProperties ? (
+            <WindowProperties
+              visible={showWindowProperties}
+              title={windowTitle}
+              setTitle={(title) => handleWindowPropertiesChange(title, windowSize, windowBgColor)}
+              size={windowSize}
+              setSize={(size) => handleWindowPropertiesChange(windowTitle, size, windowBgColor)}
+              bgColor={windowBgColor}
+              setBgColor={(color) => handleWindowPropertiesChange(windowTitle, windowSize, color)}
+            />
+          ) : (
+            <div className="flex-1 overflow-auto bg-background p-6">
+              <Canvas
+                components={components}
+                setComponents={(newComponents) => handleComponentsChange(newComponents, ACTION_TYPES.UPDATE_COMPONENT)}
+                selectedComponent={selectedComponent}
+                setSelectedComponent={handleComponentSelect}
+                onDeleteComponent={handleDeleteComponent}
+                selectedComponents={selectedComponents}
+                setSelectedComponents={setSelectedComponents}
+                windowTitle={windowTitle}
+                windowSize={windowSize}
+                windowBgColor={windowBgColor}
+                setWindowTitle={(title) => handleWindowPropertiesChange(title, windowSize, windowBgColor)}
+                onAddComponent={handleAddComponent}
               />
             </div>
           )}
+          
+          <div className="w-80 border-l flex flex-col overflow-hidden border-border bg-gray-50">
+            <PropertyPanel
+              selectedComponent={selectedComponent}
+              onUpdate={handleComponentUpdate}
+              setInputFocused={setInputFocused}
+              inputFocused={inputFocused}
+            />
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

@@ -1,6 +1,0 @@
-
-project_id = "mmcmimmzgvovmvnbsznv"
-
-[functions.verify-gumroad-purchase]
-verify_jwt = true
-

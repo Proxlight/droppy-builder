@@ -66,9 +66,10 @@ export const Layers = ({
       });
       
       onComponentsChange(updatedComponents);
-      toast.info(`Component visibility ${!newVisibility[id] ? 'hidden' : 'shown'}`);
       return newVisibility;
     });
+    
+    toast.info(`Component visibility ${visibilityStates[id] ? 'hidden' : 'shown'}`);
   };
   
   const toggleLock = (id: string, e: React.MouseEvent) => {
@@ -120,17 +121,7 @@ export const Layers = ({
       return;
     }
     
-    // Calculate the actual array indices (components are displayed reversed)
-    const reversedComponents = [...components].reverse();
-    const fromIndex = components.length - 1 - result.source.index;
-    const toIndex = components.length - 1 - result.destination.index;
-    
-    // Create new array with reordered components
-    const newComponents = [...components];
-    const [removed] = newComponents.splice(fromIndex, 1);
-    newComponents.splice(toIndex, 0, removed);
-    
-    onComponentsChange(newComponents);
+    onOrderChange(result.source.index, result.destination.index);
     toast.success('Layer order updated');
   };
   
@@ -179,7 +170,7 @@ export const Layers = ({
                       index={index}
                       isDragDisabled={isLocked}
                     >
-                      {(provided, snapshot) => (
+                      {(provided) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
@@ -187,7 +178,7 @@ export const Layers = ({
                             selectedComponent?.id === component.id 
                               ? 'bg-primary/10 border border-primary/30' 
                               : 'hover:bg-gray-100 border border-transparent'
-                          } ${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                          }`}
                           onClick={() => handleLayerClick(component)}
                         >
                           <div className="flex items-center">
@@ -260,7 +251,7 @@ export const Layers = ({
             {components.length} components
           </span>
           <span className="text-xs text-muted-foreground">
-            <span className="font-medium">Tip:</span> Drag to reorder layers
+            <span className="font-medium">Tip:</span> Lock layers to prevent editing
           </span>
         </div>
       </div>
