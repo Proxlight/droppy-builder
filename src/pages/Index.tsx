@@ -48,16 +48,13 @@ const Index = () => {
     const checkUser = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('[Index] Session on mount:', session);
+        console.log('[Index] [checkUser] Session:', session);
 
         if (session?.user) {
-          console.log('[Index] User authenticated, loading main app...');
           setUser(session.user);
           setLoading(false);
         } else {
-          console.log('[Index] No user found, redirecting to /account');
-          setLoading(false); // Set loading false so render logic runs
-          // Redirect handled in the main render below
+          setLoading(false);
         }
       } catch (error) {
         console.error('[Index] Error checking authentication:', error);
@@ -69,7 +66,7 @@ const Index = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('[Index] Auth state changed:', event, session);
+        console.log('[Index] [onAuthStateChange]', event, session);
 
         if (session?.user) {
           setUser(session.user);
@@ -84,7 +81,7 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Don't render the main interface if still loading authentication state
+  // Wait for loading to finish before redirecting unauthenticated
   if (loading) {
     return (
       <div className="min-h-screen dashboard-bg flex items-center justify-center">
@@ -97,10 +94,11 @@ const Index = () => {
     );
   }
 
-  // Only redirect if NOT loading AND no user is present.
-  if (!loading && !user) {
-    console.log('[Index] No user (after loading), will redirect to /account');
-    navigate('/account');
+  if (!user && !loading) {
+    console.log('[Index] Not authenticated, going to /account');
+    setTimeout(() => {
+      navigate('/account', { replace: true });
+    }, 100); // small delay to avoid instant redirect loop
     return null;
   }
   

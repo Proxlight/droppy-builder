@@ -115,8 +115,8 @@ export const AccountSection = () => {
   };
 
   const handleBackToApp = () => {
-    console.log('[AccountSection] Navigating back to main app from /account');
-    navigate('/');
+    console.log('[AccountSection] Cross button clicked, should navigate to /');
+    navigate('/'); // plain navigation
   };
 
   if (loading) {
