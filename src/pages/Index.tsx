@@ -48,20 +48,20 @@ const Index = () => {
     const checkUser = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('Current session:', session);
-        
+        console.log('[Index] Session on mount:', session);
+
         if (session?.user) {
-          console.log('User authenticated, loading main app...');
+          console.log('[Index] User authenticated, loading main app...');
           setUser(session.user);
           setLoading(false);
         } else {
-          console.log('No user found, redirecting to account...');
-          navigate('/account', { replace: true });
-          return;
+          console.log('[Index] No user found, redirecting to /account');
+          setLoading(false); // Set loading false so render logic runs
+          // Redirect handled in the main render below
         }
       } catch (error) {
-        console.error('Error checking authentication:', error);
-        navigate('/account', { replace: true });
+        console.error('[Index] Error checking authentication:', error);
+        setLoading(false);
       }
     };
 
@@ -69,15 +69,14 @@ const Index = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state changed:', event, session);
-        
+        console.log('[Index] Auth state changed:', event, session);
+
         if (session?.user) {
           setUser(session.user);
           setLoading(false);
         } else if (event === 'SIGNED_OUT') {
-          console.log('User signed out, redirecting to account...');
           setUser(null);
-          navigate('/account', { replace: true });
+          setLoading(false);
         }
       }
     );
@@ -85,7 +84,7 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Don't render the main interface if user is not authenticated
+  // Don't render the main interface if still loading authentication state
   if (loading) {
     return (
       <div className="min-h-screen dashboard-bg flex items-center justify-center">
@@ -98,9 +97,11 @@ const Index = () => {
     );
   }
 
-  if (!user) {
-    console.log('No user, should redirect to account...');
-    return null; // Will redirect to /account
+  // Only redirect if NOT loading AND no user is present.
+  if (!loading && !user) {
+    console.log('[Index] No user (after loading), will redirect to /account');
+    navigate('/account');
+    return null;
   }
   
   // Safe setter for selected component that includes validation
