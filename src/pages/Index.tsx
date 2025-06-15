@@ -48,13 +48,16 @@ const Index = () => {
     const checkUser = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('Current session:', session);
         setUser(session?.user ?? null);
         
         if (!session?.user) {
+          console.log('No user found, redirecting to account...');
           navigate('/account');
           return;
         }
         
+        console.log('User authenticated, loading main app...');
         setLoading(false);
       } catch (error) {
         console.error('Error checking authentication:', error);
@@ -66,8 +69,10 @@ const Index = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state changed:', event, session);
         setUser(session?.user ?? null);
-        if (!session?.user) {
+        if (!session?.user && event !== 'INITIAL_SESSION') {
+          console.log('User signed out, redirecting to account...');
           navigate('/account');
         }
       }
@@ -90,6 +95,7 @@ const Index = () => {
   }
 
   if (!user) {
+    console.log('No user, should redirect to account...');
     return null; // Will redirect to /account
   }
   

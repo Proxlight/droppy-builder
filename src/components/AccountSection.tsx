@@ -115,7 +115,8 @@ export const AccountSection = () => {
   };
 
   const handleBackToApp = () => {
-    navigate('/');
+    console.log('Navigating back to main app...');
+    navigate('/', { replace: true });
   };
 
   if (loading) {
@@ -163,8 +164,9 @@ export const AccountSection = () => {
       {/* Cross button to go back to main app */}
       <button
         onClick={handleBackToApp}
-        className="fixed top-6 right-6 z-50 glass-button p-3 text-white hover:bg-white/20 transition-all duration-300"
+        className="fixed top-6 right-6 z-50 glass-button p-3 text-white hover:bg-white/20 transition-all duration-300 cursor-pointer"
         title="Back to GUI Builder"
+        type="button"
       >
         <X className="h-6 w-6" />
       </button>
