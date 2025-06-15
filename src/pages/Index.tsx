@@ -43,29 +43,22 @@ const Index = () => {
   const [windowSize, setWindowSize] = useState({ width: 800, height: 600 });
   const [windowBgColor, setWindowBgColor] = useState("#1A1A1A");
 
-  // --- DEBUG LOGGING ---
-  useEffect(() => {
-    console.log("[Index] Rendering. user:", user, "loading:", loading);
-  }, [user, loading]);
-  // ---------------------
-
   // Authentication check
   useEffect(() => {
-    console.log("[Index] useEffect[] Mount");
     const checkUser = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('[Index] [checkUser] Session:', session);
-
-        if (session?.user) {
-          setUser(session.user);
-          setLoading(false);
-        } else {
-          setLoading(false);
+        setUser(session?.user ?? null);
+        
+        if (!session?.user) {
+          navigate('/account');
+          return;
         }
-      } catch (error) {
-        console.error('[Index] Error checking authentication:', error);
+        
         setLoading(false);
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+        navigate('/account');
       }
     };
 
@@ -73,14 +66,9 @@ const Index = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('[Index] [onAuthStateChange]', event, session);
-
-        if (session?.user) {
-          setUser(session.user);
-          setLoading(false);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setLoading(false);
+        setUser(session?.user ?? null);
+        if (!session?.user) {
+          navigate('/account');
         }
       }
     );
@@ -88,31 +76,21 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // --- LOG AT KEY RENDER POINTS ---
+  // Don't render the main interface if user is not authenticated
   if (loading) {
-    console.log("[Index] Still loading, returning loading screen");
     return (
-      <div className="min-h-screen dashboard-bg flex items-center justify-center">
-        <div className="glass-container p-8">
-          <div className="text-center text-white">
-            <div className="text-lg">Loading...</div>
-          </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-lg">Loading...</div>
         </div>
       </div>
     );
   }
 
-  if (!user && !loading) {
-    console.log("[Index] Not authenticated after loading! Navigating to /account");
-    setTimeout(() => {
-      navigate('/account', { replace: true });
-    }, 100);
-    return null;
+  if (!user) {
+    return null; // Will redirect to /account
   }
-
-  // Main GUI builder render
-  console.log("[Index] Authenticated: user is", user, "Rendering builder...");
-
+  
   // Safe setter for selected component that includes validation
   const safeSetSelectedComponent = useCallback((component: any) => {
     // If component is null, just clear the selection
@@ -523,17 +501,6 @@ const Index = () => {
           </div>
         </div>
       </main>
-    </div>
-  );
-
-  // If somehow neither loading nor returning UI nor redirecting
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-red-400">
-      <div className="text-white text-2xl font-bold">
-        An unknown error prevented the GUI builder from loading.
-        <br />
-        See the browser console logs for more details.
-      </div>
     </div>
   );
 };

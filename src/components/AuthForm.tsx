@@ -49,54 +49,49 @@ export const AuthForm = ({ onSuccess }: AuthFormProps) => {
   };
 
   return (
-    <div className="w-full">
-      <div className="mb-6 text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">{isLogin ? 'Login' : 'Sign Up'}</h2>
-        <p className="text-white/70">
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader>
+        <CardTitle>{isLogin ? 'Login' : 'Sign Up'}</CardTitle>
+        <CardDescription>
           {isLogin ? 'Welcome back! Please sign in to your account.' : 'Create a new account to get started.'}
-        </p>
-      </div>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="glass-input w-full px-4 py-3 text-white placeholder-white/60"
-            required
-          />
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Loading...' : isLogin ? 'Login' : 'Sign Up'}
+          </Button>
+        </form>
+        
+        <div className="text-center mt-4">
+          <button
+            type="button"
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Login'}
+          </button>
         </div>
-        <div>
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="glass-input w-full px-4 py-3 text-white placeholder-white/60"
-            required
-            minLength={6}
-          />
-        </div>
-        <button 
-          type="submit" 
-          className="glass-button w-full py-3 text-white font-medium" 
-          disabled={loading}
-        >
-          {loading ? 'Loading...' : isLogin ? 'Login' : 'Sign Up'}
-        </button>
-      </form>
-      
-      <div className="text-center mt-6">
-        <button
-          type="button"
-          onClick={() => setIsLogin(!isLogin)}
-          className="text-white/80 hover:text-white transition-colors underline"
-        >
-          {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Login'}
-        </button>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
