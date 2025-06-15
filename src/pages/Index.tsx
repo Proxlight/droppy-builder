@@ -43,8 +43,15 @@ const Index = () => {
   const [windowSize, setWindowSize] = useState({ width: 800, height: 600 });
   const [windowBgColor, setWindowBgColor] = useState("#1A1A1A");
 
+  // --- DEBUG LOGGING ---
+  useEffect(() => {
+    console.log("[Index] Rendering. user:", user, "loading:", loading);
+  }, [user, loading]);
+  // ---------------------
+
   // Authentication check
   useEffect(() => {
+    console.log("[Index] useEffect[] Mount");
     const checkUser = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -81,8 +88,9 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Wait for loading to finish before redirecting unauthenticated
+  // --- LOG AT KEY RENDER POINTS ---
   if (loading) {
+    console.log("[Index] Still loading, returning loading screen");
     return (
       <div className="min-h-screen dashboard-bg flex items-center justify-center">
         <div className="glass-container p-8">
@@ -95,13 +103,16 @@ const Index = () => {
   }
 
   if (!user && !loading) {
-    console.log('[Index] Not authenticated, going to /account');
+    console.log("[Index] Not authenticated after loading! Navigating to /account");
     setTimeout(() => {
       navigate('/account', { replace: true });
-    }, 100); // small delay to avoid instant redirect loop
+    }, 100);
     return null;
   }
-  
+
+  // Main GUI builder render
+  console.log("[Index] Authenticated: user is", user, "Rendering builder...");
+
   // Safe setter for selected component that includes validation
   const safeSetSelectedComponent = useCallback((component: any) => {
     // If component is null, just clear the selection
@@ -512,6 +523,17 @@ const Index = () => {
           </div>
         </div>
       </main>
+    </div>
+  );
+
+  // If somehow neither loading nor returning UI nor redirecting
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-red-400">
+      <div className="text-white text-2xl font-bold">
+        An unknown error prevented the GUI builder from loading.
+        <br />
+        See the browser console logs for more details.
+      </div>
     </div>
   );
 };
