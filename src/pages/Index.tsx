@@ -79,9 +79,11 @@ const Index = () => {
   // Don't render the main interface if user is not authenticated
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-lg">Loading...</div>
+      <div className="min-h-screen dashboard-bg flex items-center justify-center">
+        <div className="glass-container p-8">
+          <div className="text-center text-white">
+            <div className="text-lg">Loading...</div>
+          </div>
         </div>
       </div>
     );

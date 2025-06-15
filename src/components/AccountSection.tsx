@@ -114,64 +114,92 @@ export const AccountSection = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">Loading...</div>
+      <div className="min-h-screen dashboard-bg flex items-center justify-center">
+        <div className="glass-container p-8">
+          <div className="text-center text-white">Loading...</div>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-4">Welcome to GUI Builder</h1>
-          <p className="text-muted-foreground mb-8">Sign in to access your account and manage your subscription</p>
+      <div className="min-h-screen dashboard-bg relative overflow-hidden">
+        {/* Floating orbs */}
+        <div className="floating-orb"></div>
+        <div className="floating-orb"></div>
+        <div className="floating-orb"></div>
+        
+        <div className="container mx-auto px-4 py-8 relative z-10">
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="w-full max-w-md">
+              <div className="text-center mb-8">
+                <h1 className="text-4xl font-bold mb-4 text-white">Welcome to GUI Builder</h1>
+                <p className="text-white/80 mb-8">Sign in to access your account and manage your subscription</p>
+              </div>
+              <div className="glass-container p-6">
+                <AuthForm />
+              </div>
+            </div>
+          </div>
         </div>
-        <AuthForm />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold mb-4">Account Dashboard</h1>
-        <p className="text-muted-foreground">Manage your account and subscription</p>
-      </div>
+    <div className="min-h-screen dashboard-bg relative overflow-hidden">
+      {/* Floating orbs */}
+      <div className="floating-orb"></div>
+      <div className="floating-orb"></div>
+      <div className="floating-orb"></div>
+      
+      <div className="scrollable-container">
+        <div className="container mx-auto px-4 py-8 space-y-8 relative z-10">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold mb-4 text-white">Account Dashboard</h1>
+            <p className="text-white/80">Manage your account and subscription</p>
+          </div>
 
-      {/* User Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Account Information</CardTitle>
-          <CardDescription>Your account details and current status</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <strong>Email:</strong> {user.email}
+          {/* User Info */}
+          <div className="glass-container p-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2">Account Information</h2>
+              <p className="text-white/70">Your account details and current status</p>
+            </div>
+            <div className="space-y-4 text-white">
+              <div>
+                <strong>Email:</strong> <span className="text-white/80">{user.email}</span>
+              </div>
+              <div>
+                <strong>Display Name:</strong> <span className="text-white/80">{profile?.display_name || 'Not set'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <strong>Current Plan:</strong>
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-white rounded-full text-sm font-medium border border-white/30">
+                  {subscription?.tier ? subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1) : 'Free'}
+                </span>
+              </div>
+              <div className="pt-4 border-t border-white/20">
+                <button 
+                  onClick={handleSignOut}
+                  className="glass-button px-6 py-2 text-white font-medium"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
           </div>
-          <div>
-            <strong>Display Name:</strong> {profile?.display_name || 'Not set'}
-          </div>
-          <div>
-            <strong>Current Plan:</strong> 
-            <span className="ml-2 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm font-medium">
-              {subscription?.tier ? subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1) : 'Free'}
-            </span>
-          </div>
-          <Separator />
-          <Button variant="outline" onClick={handleSignOut}>
-            Sign Out
-          </Button>
-        </CardContent>
-      </Card>
 
-      {/* Pricing Plans */}
-      <div>
-        <h2 className="text-2xl font-bold text-center mb-6">Choose Your Plan</h2>
-        <PricingPlans 
-          currentPlan={subscription?.tier || 'free'}
-          onSelectPlan={handlePlanSelect}
-        />
+          {/* Pricing Plans */}
+          <div className="glass-container p-6">
+            <h2 className="text-2xl font-bold text-center mb-6 text-white">Choose Your Plan</h2>
+            <PricingPlans 
+              currentPlan={subscription?.tier || 'free'}
+              onSelectPlan={handlePlanSelect}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
