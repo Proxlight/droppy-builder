@@ -7,6 +7,9 @@ import { Toolbar } from '@/components/Toolbar';
 import { Layers } from '@/components/Layers';
 import { WindowProperties } from '@/components/WindowProperties';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
 
 // Define what constitutes a major state change for undo/redo
 const ACTION_TYPES = {
@@ -19,6 +22,10 @@ const ACTION_TYPES = {
 };
 
 const Index = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  
   const [selectedComponent, setSelectedComponent] = useState(null);
   const [components, setComponents] = useState([]);
   const [history, setHistory] = useState<any[][]>([[]]);
@@ -34,7 +41,55 @@ const Index = () => {
   
   const [windowTitle, setWindowTitle] = useState("My CustomTkinter Application");
   const [windowSize, setWindowSize] = useState({ width: 800, height: 600 });
-  const [windowBgColor, setWindowBgColor] = useState("#1A1A1A"); // Set dark background as default
+  const [windowBgColor, setWindowBgColor] = useState("#1A1A1A");
+
+  // Authentication check
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+        
+        if (!session?.user) {
+          navigate('/account');
+          return;
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+        navigate('/account');
+      }
+    };
+
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        if (!session?.user) {
+          navigate('/account');
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  // Don't render the main interface if user is not authenticated
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-lg">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to /account
+  }
   
   // Safe setter for selected component that includes validation
   const safeSetSelectedComponent = useCallback((component: any) => {
