@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,11 +7,14 @@ import { User, Session } from '@supabase/supabase-js';
 import { AuthForm } from './AuthForm';
 import { PricingPlans } from './PricingPlans';
 import { toast } from 'sonner';
+import { X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { Database } from '@/integrations/supabase/types';
 
 type SubscriptionTier = Database['public']['Enums']['subscription_tier'];
 
 export const AccountSection = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,6 +114,10 @@ export const AccountSection = () => {
     }
   };
 
+  const handleBackToApp = () => {
+    navigate('/');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen dashboard-bg flex items-center justify-center">
@@ -153,6 +159,15 @@ export const AccountSection = () => {
       <div className="floating-orb"></div>
       <div className="floating-orb"></div>
       <div className="floating-orb"></div>
+      
+      {/* Cross button to go back to main app */}
+      <button
+        onClick={handleBackToApp}
+        className="fixed top-6 right-6 z-50 glass-button p-3 text-white hover:bg-white/20 transition-all duration-300"
+        title="Back to GUI Builder"
+      >
+        <X className="h-6 w-6" />
+      </button>
       
       <div className="scrollable-container">
         <div className="container mx-auto px-4 py-8 space-y-8 relative z-10">
