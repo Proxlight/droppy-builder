@@ -49,19 +49,19 @@ const Index = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         console.log('Current session:', session);
-        setUser(session?.user ?? null);
         
-        if (!session?.user) {
+        if (session?.user) {
+          console.log('User authenticated, loading main app...');
+          setUser(session.user);
+          setLoading(false);
+        } else {
           console.log('No user found, redirecting to account...');
-          navigate('/account');
+          navigate('/account', { replace: true });
           return;
         }
-        
-        console.log('User authenticated, loading main app...');
-        setLoading(false);
       } catch (error) {
         console.error('Error checking authentication:', error);
-        navigate('/account');
+        navigate('/account', { replace: true });
       }
     };
 
@@ -70,10 +70,14 @@ const Index = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event, session);
-        setUser(session?.user ?? null);
-        if (!session?.user && event !== 'INITIAL_SESSION') {
+        
+        if (session?.user) {
+          setUser(session.user);
+          setLoading(false);
+        } else if (event === 'SIGNED_OUT') {
           console.log('User signed out, redirecting to account...');
-          navigate('/account');
+          setUser(null);
+          navigate('/account', { replace: true });
         }
       }
     );
